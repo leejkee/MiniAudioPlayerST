@@ -1,0 +1,12 @@
+{
+    "clangd.path": "C:/Program Files/LLVM/bin/clangd.exe",
+
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=never"
+    ],
+
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+}

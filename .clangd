@@ -1,0 +1,28 @@
+---
+# 仅对 firmware 目录下的 STM32 工程应用以下配置
+If:
+  PathMatch: firmware[/\\].*
+
+CompileFlags:
+  Add:
+    # ARM Cortex-M0 目标架构 (STM32F072xB)
+    - "--target=arm-none-eabi"
+    - "-mcpu=cortex-m0"
+    - "-mfloat-abi=soft"
+    - "-mthumb"
+    # CubeMX 生成的头文件路径 (相对路径基于 .clangd 所在目录)
+    - "-I firmware/MiniAudioPlayerST/Core/Inc"
+    - "-I firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc"
+    - "-I firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc/Legacy"
+    - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Device/ST/STM32F0xx/Include"
+    - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Include"
+    # CubeMX 预设宏
+    - "-D USE_HAL_DRIVER"
+    - "-D STM32F072xB"
+
+Diagnostics:
+  # 抑制因缺少 ARM GCC 标准库头文件 (如 <stdint.h>) 导致的误报
+  # 不影响代码导航和补全功能
+  Suppress:
+    - "pp_file_not_found"
+  UnusedIncludes: None
