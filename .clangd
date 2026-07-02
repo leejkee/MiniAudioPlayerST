@@ -17,8 +17,8 @@ CompileFlags:
     - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Device/ST/STM32F0xx/Include"
     - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Include"
     # 业务层头文件
-    - "-I App/include"
-    - "-I BSP/include"
+    - "-I firmware/MiniAudioPlayerST/App/include"
+    - "-I firmware/MiniAudioPlayerST/BSP/include"
     # CubeMX 预设宏
     - "-D USE_HAL_DRIVER"
     - "-D STM32F072xB"

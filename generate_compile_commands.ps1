@@ -15,22 +15,31 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# ---- 路径解析 ----
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# ============================================================================
+# 关键目录变量 (改为 Windows 路径, 使用时按需转 Unix 斜杠)
+# ============================================================================
 
+# 仓库根目录 (脚本所在目录)
+$RepoRoot = (Resolve-Path (Split-Path -Parent $MyInvocation.MyCommand.Path)).Path
+
+# CubeMX 固件工程根目录 (与 .ioc 同级, 含 Core/Drivers/BSP/App)
+$FirmwareRoot = Join-Path $RepoRoot "firmware\MiniAudioPlayerST"
+
+# MDK-ARM 目录 (含 .uvprojx)
+$MDKDir = Join-Path $FirmwareRoot "MDK-ARM"
+
+# ---- 参数默认值 ----
 if (-not $UvprojxPath) {
-    $UvprojxPath = Join-Path $ScriptDir "firmware\MiniAudioPlayerST\MDK-ARM\MiniAudioPlayerST.uvprojx"
+    $UvprojxPath = Join-Path $MDKDir "MiniAudioPlayerST.uvprojx"
 }
 if (-not $OutputPath) {
-    $OutputPath = Join-Path $ScriptDir "compile_commands.json"
+    $OutputPath = Join-Path $RepoRoot "compile_commands.json"
 }
 
 if (-not (Test-Path $UvprojxPath)) {
     Write-Error "找不到工程文件: $UvprojxPath"
     exit 1
 }
-
-$MDKDir = (Resolve-Path (Split-Path -Parent $UvprojxPath)).Path
 
 Write-Host "=== 解析 MDK-ARM 工程 ==="
 Write-Host "工程文件: $UvprojxPath"
@@ -76,21 +85,21 @@ $firmwareBaseArgs = @(
 foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
 foreach ($inc in $includeList) { $firmwareBaseArgs += "-I$inc" }
 
-# ---- 构建仓库根目录基准编译参数 (BSP/App 业务层使用) ----
-# 仓库根目录
-$RepoRoot = (Resolve-Path $ScriptDir).Path
-$RepoRootUnix = $RepoRoot -replace '\\', '/'
-$FirmwareDir = Join-Path $RepoRoot "firmware\MiniAudioPlayerST"
+# ---- 构建固件工程根目录基准编译参数 (BSP/App 业务层使用) ----
+# Unix 斜杠版本
+$RepoRootUnix    = $RepoRoot    -replace '\\', '/'
+$FirmwareRootUnix = $FirmwareRoot -replace '\\', '/'
+$MDKDirUnix       = $MDKDir       -replace '\\', '/'
 
-# 业务层 include 路径 (相对于仓库根)
+# 业务层 include 路径 (相对于 $FirmwareRoot)
 $businessIncludes = @(
     "App/include",
     "BSP/include",
-    "firmware/MiniAudioPlayerST/Core/Inc",
-    "firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc",
-    "firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc/Legacy",
-    "firmware/MiniAudioPlayerST/Drivers/CMSIS/Device/ST/STM32F0xx/Include",
-    "firmware/MiniAudioPlayerST/Drivers/CMSIS/Include"
+    "Core/Inc",
+    "Drivers/STM32F0xx_HAL_Driver/Inc",
+    "Drivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+    "Drivers/CMSIS/Device/ST/STM32F0xx/Include",
+    "Drivers/CMSIS/Include"
 )
 
 $businessBaseArgs = @(
@@ -116,7 +125,7 @@ foreach ($node in $fileNodes) {
     # 解析为绝对路径并转为正斜杠 (clangd 跨平台兼容)
     $absFile = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($MDKDir, $relPath))
     $absFile = $absFile -replace '\\', '/'
-    $absDir = $MDKDir -replace '\\', '/'
+    $absDir = $MDKDirUnix
 
     $entry = [ordered]@{
         directory = $absDir
@@ -128,29 +137,29 @@ foreach ($node in $fileNodes) {
 
 Write-Host "固件源文件: $($result.Count)"
 
-# ---- 扫描 BSP/ 和 App/ 业务层 .c 文件 ----
+# ---- 扫描 BSP/ 和 App/ 业务层 .c 文件 (位于固件工程根目录下) ----
 $businessSources = @()
 
 # BSP/src/*.c
-$bspSrcDir = Join-Path $RepoRoot "BSP\src"
+$bspSrcDir = Join-Path $FirmwareRoot "BSP\src"
 if (Test-Path $bspSrcDir) {
     $bspFiles = Get-ChildItem -Path $bspSrcDir -Filter "*.c" -File
     foreach ($f in $bspFiles) {
         $businessSources += @{
             FullPath = $f.FullName
-            Relative  = $f.FullName.Replace($RepoRoot + '\', '') -replace '\\', '/'
+            Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
         }
     }
 }
 
-# App/ 递归扫描 *.c
-$appDir = Join-Path $RepoRoot "App\src"
+# App/ 递归扫描 *.c (覆盖 src/ test/ 等所有子目录)
+$appDir = Join-Path $FirmwareRoot "App"
 if (Test-Path $appDir) {
     $appFiles = Get-ChildItem -Path $appDir -Recurse -Filter "*.c" -File
     foreach ($f in $appFiles) {
         $businessSources += @{
             FullPath = $f.FullName
-            Relative  = $f.FullName.Replace($RepoRoot + '\', '') -replace '\\', '/'
+            Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
         }
     }
 }
@@ -161,7 +170,7 @@ foreach ($src in $businessSources) {
     $absFile = $src.FullPath -replace '\\', '/'
 
     $entry = [ordered]@{
-        directory = $RepoRootUnix
+        directory = $FirmwareRootUnix
         arguments = @($businessBaseArgs + $src.Relative)
         file      = $absFile
     }
