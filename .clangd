@@ -1,7 +1,7 @@
 ---
-# 仅对 firmware 目录下的 STM32 工程应用以下配置
-If:
-  PathMatch: firmware[/\\].*
+# 当 compile_commands.json 中未包含某个文件时, clangd 使用以下配置作为兜底。
+# 正常情况下, 运行 .\generate_compile_commands.ps1 后所有源文件都会被收录,
+# 以下 CompileFlags 仅在未运行脚本或新增文件尚未收录时生效。
 
 CompileFlags:
   Add:
@@ -10,12 +10,15 @@ CompileFlags:
     - "-mcpu=cortex-m0"
     - "-mfloat-abi=soft"
     - "-mthumb"
-    # CubeMX 生成的头文件路径 (相对路径基于 .clangd 所在目录)
+    # HAL 驱动头文件
     - "-I firmware/MiniAudioPlayerST/Core/Inc"
     - "-I firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc"
     - "-I firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc/Legacy"
     - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Device/ST/STM32F0xx/Include"
     - "-I firmware/MiniAudioPlayerST/Drivers/CMSIS/Include"
+    # 业务层头文件
+    - "-I App/include"
+    - "-I BSP/include"
     # CubeMX 预设宏
     - "-D USE_HAL_DRIVER"
     - "-D STM32F072xB"

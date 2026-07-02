@@ -65,17 +65,45 @@ if ($includeStr) {
 }
 Write-Host "Include : $($includeList -join '; ')"
 
-# ---- 构建基础编译参数 ----
-$baseArgs = @(
+# ---- 构建固件层基础编译参数 (MDK-ARM 相对路径) ----
+$firmwareBaseArgs = @(
+    "--target=arm-none-eabi",
     "-mcpu=$cpuType",
     "-mthumb",
     "-mfloat-abi=soft",
     "-c"
 )
-foreach ($d in $defineList) { $baseArgs += "-D$d" }
-foreach ($inc in $includeList) { $baseArgs += "-I$inc" }
+foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
+foreach ($inc in $includeList) { $firmwareBaseArgs += "-I$inc" }
 
-# ---- 提取所有 C 源文件 (跳过 .s 汇编文件和 .h 头文件) ----
+# ---- 构建仓库根目录基准编译参数 (BSP/App 业务层使用) ----
+# 仓库根目录
+$RepoRoot = (Resolve-Path $ScriptDir).Path
+$RepoRootUnix = $RepoRoot -replace '\\', '/'
+$FirmwareDir = Join-Path $RepoRoot "firmware\MiniAudioPlayerST"
+
+# 业务层 include 路径 (相对于仓库根)
+$businessIncludes = @(
+    "App/include",
+    "BSP/include",
+    "firmware/MiniAudioPlayerST/Core/Inc",
+    "firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc",
+    "firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+    "firmware/MiniAudioPlayerST/Drivers/CMSIS/Device/ST/STM32F0xx/Include",
+    "firmware/MiniAudioPlayerST/Drivers/CMSIS/Include"
+)
+
+$businessBaseArgs = @(
+    "--target=arm-none-eabi",
+    "-mcpu=$cpuType",
+    "-mthumb",
+    "-mfloat-abi=soft",
+    "-c"
+)
+foreach ($d in $defineList) { $businessBaseArgs += "-D$d" }
+foreach ($inc in $businessIncludes) { $businessBaseArgs += "-I$inc" }
+
+# ---- 提取所有 C 源文件 (Keil 工程中的 .c 文件) ----
 $fileNodes = $xml.SelectNodes("//FilePath")
 $result = @()
 
@@ -92,13 +120,55 @@ foreach ($node in $fileNodes) {
 
     $entry = [ordered]@{
         directory = $absDir
-        arguments = @($baseArgs + $relPath)
+        arguments = @($firmwareBaseArgs + $relPath)
         file      = $absFile
     }
     $result += $entry
 }
 
-Write-Host "源文件数: $($result.Count)"
+Write-Host "固件源文件: $($result.Count)"
+
+# ---- 扫描 BSP/ 和 App/ 业务层 .c 文件 ----
+$businessSources = @()
+
+# BSP/src/*.c
+$bspSrcDir = Join-Path $RepoRoot "BSP\src"
+if (Test-Path $bspSrcDir) {
+    $bspFiles = Get-ChildItem -Path $bspSrcDir -Filter "*.c" -File
+    foreach ($f in $bspFiles) {
+        $businessSources += @{
+            FullPath = $f.FullName
+            Relative  = $f.FullName.Replace($RepoRoot + '\', '') -replace '\\', '/'
+        }
+    }
+}
+
+# App/ 递归扫描 *.c
+$appDir = Join-Path $RepoRoot "App\src"
+if (Test-Path $appDir) {
+    $appFiles = Get-ChildItem -Path $appDir -Recurse -Filter "*.c" -File
+    foreach ($f in $appFiles) {
+        $businessSources += @{
+            FullPath = $f.FullName
+            Relative  = $f.FullName.Replace($RepoRoot + '\', '') -replace '\\', '/'
+        }
+    }
+}
+
+Write-Host "业务层源文件: $($businessSources.Count)"
+
+foreach ($src in $businessSources) {
+    $absFile = $src.FullPath -replace '\\', '/'
+
+    $entry = [ordered]@{
+        directory = $RepoRootUnix
+        arguments = @($businessBaseArgs + $src.Relative)
+        file      = $absFile
+    }
+    $result += $entry
+}
+
+Write-Host "总源文件数: $($result.Count)"
 
 # ---- 写入 compile_commands.json (UTF-8 无 BOM) ----
 $json = $result | ConvertTo-Json -Depth 5
