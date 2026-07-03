@@ -333,7 +333,7 @@ CH376S 模块
 | VS1003  | SPI2 | MOSI/MISO/SCK/CS PB15/PB14/PB13/PB11, PB12 | |  | 数据和命令共享 SPI |
 | VS1003 DREQ | GPIO 输入中断 | PB10 | - | | 流控信号，高电平表示可接收数据 |
 | SD 卡 | SPI1 | MOSI/MISO/SCK/CS PA7/PA6/PA5/PA4 | | | 文件读取 |
-| 按键 | GPIO | PA8/PA9/PA10/PA11 | - |  | Menu/OK/L/R 按键 |
+| 按键 | GPIO | PA9/PA10/PA11/PA12 | - |  | Menu/OK/L/R 按键 |
 
 ### 9.3 VS1003 通信协议要点
 

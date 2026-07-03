@@ -39,10 +39,10 @@
 
 | 标签名 | 引脚 | 模式 | GPIO 配置 |
 |--------|------|------|-----------|
-| KEY_MENU | **PA8**  | GPIO_Input | Pull-up |
-| KEY_OK   | **PA9**  | GPIO_Input | Pull-up |
-| KEY_L    | **PA10** | GPIO_Input | Pull-up |
-| KEY_R    | **PA11** | GPIO_Input | Pull-up |
+| KEY_MENU | **PA9**  | GPIO_Input | Pull-up |
+| KEY_OK   | **PA10**  | GPIO_Input | Pull-up |
+| KEY_L    | **PA11** | GPIO_Input | Pull-up |
+| KEY_R    | **PA12** | GPIO_Input | Pull-up |
 
 > **按键方案说明**：PRD 要求硬件消抖（由板级 RC 电路实现），默认上拉，按下接 GND。软件侧由 FreeRTOS 按键扫描任务 20ms 轮询去抖，不依赖外部中断。
 
