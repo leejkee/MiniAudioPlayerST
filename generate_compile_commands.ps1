@@ -84,6 +84,9 @@ $firmwareBaseArgs = @(
 )
 foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
 foreach ($inc in $includeList) { $firmwareBaseArgs += "-I$inc" }
+# 补充业务层 include 路径 (App/BSP), MDK-ARM 目录下的相对路径为 ../App/include 和 ../BSP/include
+$firmwareBaseArgs += "-I../App/include"
+$firmwareBaseArgs += "-I../BSP/include"
 
 # ---- 构建固件工程根目录基准编译参数 (BSP/App 业务层使用) ----
 # Unix 斜杠版本
