@@ -7,7 +7,7 @@ compile_commands.json
 *.uvoptx
 *.dbgconf
 *.lst
-DebugConfig/
-RTE/
-# 编译产物目录 (与 .uvprojx 同级)
-MiniAudioPlayerST/
+firmware/MiniAudioPlayerST/MDK-ARM/DebugConfig/
+firmware/MiniAudioPlayerST/MDK-ARM/RTE/
+firmware/MiniAudioPlayerST/MDK-ARM/MiniAudioPlayerST/
+*.scvd

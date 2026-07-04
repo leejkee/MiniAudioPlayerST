@@ -105,10 +105,12 @@
 
 **I2C1 参数配置：**
 
+> I2C Mode配置：可选Disable(禁用)、I2C(通用双线模式)或SMBus(带超时机制/硬件报警的系统管理总线模式)。
+
 | 参数 | 值 |
 |------|-----|
 | I2C Speed Mode | **Fast Mode** |
-| Clock Speed | 400000 Hz |
+| Clock Speed | 400 000 Hz |
 | I2C Address | `0x3C << 1 = 0x78`（SSD1306 7 位地址 0x3C） |
 
 > **注意**：部分 SSD1306 模块 SA0 引脚拉高时地址为 `0x3D`，需根据实际模块焊盘确认。
