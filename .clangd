@@ -10,6 +10,10 @@ CompileFlags:
     - "-mcpu=cortex-m0"
     - "-mfloat-abi=soft"
     - "-mthumb"
+    # 兼容 Keil ARMCC 专有属性 (如 __declspec)
+    - "-fdeclspec"
+    # Keil ARMCC 标准库头文件 (提供 <stdio.h>、<stdint.h> 等)
+    - "-isystem C:/Keil_v5/ARM/ARMCC/include"
     # HAL 驱动头文件
     - "-I firmware/MiniAudioPlayerST/Core/Inc"
     - "-I firmware/MiniAudioPlayerST/Drivers/STM32F0xx_HAL_Driver/Inc"
@@ -24,8 +28,4 @@ CompileFlags:
     - "-D STM32F072xB"
 
 Diagnostics:
-  # 抑制因缺少 ARM GCC 标准库头文件 (如 <stdint.h>) 导致的误报
-  # 不影响代码导航和补全功能
-  Suppress:
-    - "pp_file_not_found"
   UnusedIncludes: None

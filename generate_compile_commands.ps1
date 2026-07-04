@@ -80,6 +80,9 @@ $firmwareBaseArgs = @(
     "-mcpu=$cpuType",
     "-mthumb",
     "-mfloat-abi=soft",
+    "-isystem",
+    "C:/Keil_v5/ARM/ARMCC/include",
+    "-fdeclspec",
     "-c"
 )
 foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
@@ -110,6 +113,9 @@ $businessBaseArgs = @(
     "-mcpu=$cpuType",
     "-mthumb",
     "-mfloat-abi=soft",
+    "-isystem",
+    "C:/Keil_v5/ARM/ARMCC/include",
+    "-fdeclspec",
     "-c"
 )
 foreach ($d in $defineList) { $businessBaseArgs += "-D$d" }
