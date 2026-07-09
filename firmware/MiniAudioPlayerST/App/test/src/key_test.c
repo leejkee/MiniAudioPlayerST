@@ -12,6 +12,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include "key_test.h"
 #include "bsp_key.h"
 #include "key_scanner.h"
 

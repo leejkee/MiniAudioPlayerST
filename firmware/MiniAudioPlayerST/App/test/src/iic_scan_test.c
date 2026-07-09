@@ -1,3 +1,4 @@
+#include "iic_scan_test.h"
 #include "bsp_i2c_scanner.h"
 #include "bsp_config.h"
 
