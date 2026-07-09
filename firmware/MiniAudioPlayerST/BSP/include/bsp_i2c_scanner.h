@@ -29,6 +29,7 @@ extern "C" {
   */
 uint8_t BSP_I2C_Scanner_Scan(I2C_HandleTypeDef *hi2c, uint32_t timeout);
 
+
 #ifdef __cplusplus
 }
 #endif
