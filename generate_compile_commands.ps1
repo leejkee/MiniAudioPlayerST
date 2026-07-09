@@ -87,8 +87,9 @@ $firmwareBaseArgs = @(
 )
 foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
 foreach ($inc in $includeList) { $firmwareBaseArgs += "-I$inc" }
-# 补充业务层 include 路径 (App/BSP), MDK-ARM 目录下的相对路径为 ../App/include 和 ../BSP/include
+# 补充业务层 include 路径 (App/BSP), MDK-ARM 目录下的相对路径为 ../App/include、../App/test/include 和 ../BSP/include
 $firmwareBaseArgs += "-I../App/include"
+$firmwareBaseArgs += "-I../App/test/include"
 $firmwareBaseArgs += "-I../BSP/include"
 
 # ---- 构建固件工程根目录基准编译参数 (BSP/App 业务层使用) ----
@@ -100,6 +101,7 @@ $MDKDirUnix       = $MDKDir       -replace '\\', '/'
 # 业务层 include 路径 (相对于 $FirmwareRoot)
 $businessIncludes = @(
     "App/include",
+    "App/test/include",
     "BSP/include",
     "Core/Inc",
     "Drivers/STM32F0xx_HAL_Driver/Inc",
