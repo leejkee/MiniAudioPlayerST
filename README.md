@@ -31,7 +31,8 @@ MiniAudioPlayerST/
 │       ├── Drivers/          # HAL 库 + CMSIS
 │       └── MDK-ARM/          # Keil 工程文件
 ├── tools/
-│   └── WebSerial/            # Web 串口调试工具
+│   ├── WebSerial/            # Web 串口调试工具
+│   └── FontTool/             # 字库 C 代码生成脚本
 ├── generate_compile_commands.ps1  # clangd 编译数据库生成脚本
 ├── compile_commands.json    # clangd 编译数据库（自动生成，不提交 git）
 └── .clangd                  # clangd 配置文件
@@ -54,6 +55,32 @@ STM32 PA2 (USART2_TX) / PA3 (USART2_RX) ←→ USB 转串口模块 (CH340 / FT23
 ### 上位机
 
 Chrome浏览器打开 `tools/WebSerial/index.html`, 波特率 115200。
+
+### 字库生成工具
+
+`tools/FontTool/` 包含 3 个 Python 脚本，生成 SSD1315 兼容的字库 C 代码 (column-major GRAM 格式)：
+
+| 脚本 | 用途 | 依赖 |
+|------|------|------|
+| `generate_ascii_font.py` | 内置 VGA 8x16 控制台位图，无需外部字体文件，生成 ASCII 0x20–0x7E (95 字) | 无 |
+| `generate_cn_font.py` | 扫描 App/ 源码提取 CJK 字符 + 内置 UI 必选字，调用 SimSun 渲染 16x16 点阵 | Pillow |
+| `scan_dir_font.py` | 扫描目录文件名提取 CJK 字符，调用 SimSun 渲染 16x16 点阵 | Pillow |
+
+**输出文件**: `App/include/font_*.h` + `App/src/font_*.c`
+
+```powershell
+# ASCII 字库 (零依赖，确定性输出)
+python tools/FontTool/generate_ascii_font.py
+
+# 中文字库 — 扫描源码 (UI 标签：歌曲播放器、正在播放 等)
+python tools/FontTool/generate_cn_font.py
+
+# 中文字库 — 扫描 SD 卡音乐目录 (歌名显示)
+python tools/FontTool/scan_dir_font.py E:\music
+python tools/FontTool/scan_dir_font.py E:\music --preview    # + ASCII 预览
+```
+
+> **注意**: 中文字库生成需要 Windows SimSun 字体 (`C:\Windows\Fonts\simsun.ttc`)，首次使用需 `pip install Pillow`。生成后重新执行 `generate_compile_commands.ps1` 更新 clangd 索引。
 
 ## 快速开始
 
