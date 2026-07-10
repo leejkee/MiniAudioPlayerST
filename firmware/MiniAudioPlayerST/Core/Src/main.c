@@ -25,7 +25,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 // #include "key_test.h"
-#include "iic_scan_test.h"
+// #include "iic_scan_test.h"
+// #include "ssd1315_test.h"
+#include "ssd1315_font_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,6 +94,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  SSD1315_Font_Test_RunAll();
 
   /* USER CODE END 2 */
 
@@ -102,7 +105,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    BSP_I2C_Scanner_Test(&hi2c1, 10);
   }
   /* USER CODE END 3 */
 }

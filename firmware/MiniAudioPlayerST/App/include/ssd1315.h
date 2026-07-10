@@ -7,6 +7,11 @@ extern "C" {
 
 #include "main.h"
 
+typedef enum {
+  FONT_TYPE_SYSTEM = 0,
+  FONT_TYPE_FILE = 1
+} CnFontType;
+
 // SSD1315 API functions
 void SSD1315_Init(void);
 
@@ -38,7 +43,7 @@ void SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size);
 
 void SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size);
 
-void SSD1315_ShowChinese(uint8_t x, uint8_t y, uint8_t num, uint8_t size);
+void SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type);
 
 void SSD1315_ScrollDisplay(uint8_t num, uint8_t space);
 

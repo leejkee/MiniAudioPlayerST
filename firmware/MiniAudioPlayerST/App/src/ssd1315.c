@@ -1,5 +1,8 @@
 #include "ssd1315.h"
 #include "bsp_oled.h"
+#include "font_en.h"
+#include "font_cn.h"
+#include "font_file_cn.h"
 #include <stdlib.h>
 
 /*
@@ -228,3 +231,89 @@ void SSD1315_Refresh(void) {
   }
   dirty_pages = 0; // 清零，下一次重新标记
 }
+
+
+void SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size) {
+  // size 当前未使用, 固定 8x16 字库。预留参数以兼容 API。
+  (void)size;
+
+  if (chr < FONT_EN_FIRST || chr > FONT_EN_LAST){
+    return;
+  }
+
+  uint8_t idx = (uint8_t)chr - FONT_EN_FIRST;
+  uint8_t page = y / 8;
+
+  // 字模格式与 GRAM 完全一致: 上半页 8 字节 + 下半页 8 字节
+  // 用 = 直接替换整字节 — bitmap[col] 已包含该列全部 8 个像素 (含 0)
+  const uint8_t *bitmap = font_en_8x16[idx];
+
+  // 上半页 (rows 0~7): bitmap[0..7] → GRAM[page][x..x+7]
+  for (uint8_t col = 0; col < 8; col++) {
+    SSD1315_GRAM[page][x + col] = bitmap[col];
+  }
+  dirty_pages |= (1 << page);
+
+  // 下半页 (rows 8~15): bitmap[8..15] → GRAM[page+1][x..x+7]
+  for (uint8_t col = 0; col < 8; col++) {
+    SSD1315_GRAM[page + 1][x + col] = bitmap[8 + col];
+  }
+  dirty_pages |= (1 << (page + 1));
+}
+
+void SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size) {
+  while (*str) {
+    SSD1315_ShowChar(x, y, *str++, size);
+    x += FONT_EN_CHAR_W; // 每个字符占 8 像素宽
+  }
+}
+
+void SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size) {
+  // 整数转字符串 (不使用 snprintf, 节省 ROM)
+  char buf[12];
+  uint8_t i = sizeof(buf) - 1;
+  buf[i] = '\0';
+
+  do {
+    buf[--i] = '0' + (num % 10);
+    num /= 10;
+  } while (num > 0);
+
+  // 不足 len 位补 '0'
+  while ((uint8_t)(sizeof(buf) - 1 - i) < len) {
+    buf[--i] = '0';
+  }
+
+  SSD1315_ShowString(x, y, &buf[i], size);
+}
+
+void SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type)
+{
+  uint8_t page = y / 8;
+  uint8_t idx;
+  const uint8_t *bitmap;
+
+  /* Dispatch font type once — single lookup + single bitmap selection */
+  if (type == FONT_TYPE_SYSTEM) {
+    idx = font_cn_lookup(unicode);
+    if (idx == 0xFF) { return; }
+    bitmap = font_cn_16x16[idx];
+  } else {
+    idx = font_file_cn_lookup(unicode);
+    if (idx == 0xFF) { return; }
+    bitmap = font_file_cn_16x16[idx];
+  }
+
+  /* Upper half (page)[x..x+15] */
+  for (uint8_t col = 0; col < 16; col++) {
+    SSD1315_GRAM[page][x + col] = bitmap[col];
+  }
+  dirty_pages |= (1 << page);
+
+  /* Lower half (page+1)[x..x+15] */
+  for (uint8_t col = 0; col < 16; col++) {
+    SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
+  }
+  dirty_pages |= (1 << (page + 1));
+}
+

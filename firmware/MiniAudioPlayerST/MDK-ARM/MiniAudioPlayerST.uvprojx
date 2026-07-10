@@ -755,6 +755,36 @@
               <FileType>1</FileType>
               <FilePath>..\App\test\src\iic_scan_test.c</FilePath>
             </File>
+            <File>
+              <FileName>ssd1315.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\ssd1315.c</FilePath>
+            </File>
+            <File>
+              <FileName>ssd1315_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test\src\ssd1315_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>font_cn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\font_cn.c</FilePath>
+            </File>
+            <File>
+              <FileName>font_en.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\font_en.c</FilePath>
+            </File>
+            <File>
+              <FileName>font_file_cn.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\font_file_cn.c</FilePath>
+            </File>
+            <File>
+              <FileName>ssd1315_font_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test\src\ssd1315_font_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
