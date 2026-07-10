@@ -14,9 +14,13 @@ void BSP_OLED_WriteCmd(uint8_t command)
 
 void BSP_OLED_WriteData(uint8_t *data, uint16_t len)
 {
-    // 通过 I2C 发送数据到 OLED
-    uint8_t ctrl = 0x40; // 0x40 表示数据模式
-    HAL_I2C_Master_Transmit(&hi2c1, OLED_I2C_ADDR, &ctrl, 1, OLED_TIMEOUT);
-    HAL_I2C_Master_Transmit(&hi2c1, OLED_I2C_ADDR, data, len, HAL_MAX_DELAY);
+    // 控制字节 + 数据必须在同一次 I2C 事务中发送
+    // SSD1315 要求每笔 I2C 写都以控制字节开头
+    static uint8_t buf[129];  // 1 控制字节 + 最大 128 数据字节
+    buf[0] = 0x40;            // 0x40 表示数据模式 (Co=0, D/C#=1)
+    for (uint16_t i = 0; i < len && i < 128; i++) {
+        buf[i + 1] = data[i];
+    }
+    HAL_I2C_Master_Transmit(&hi2c1, OLED_I2C_ADDR, buf, len + 1, HAL_MAX_DELAY);
 }
 
