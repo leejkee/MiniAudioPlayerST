@@ -49,11 +49,11 @@ STM32 PA2 (USART2_TX) / PA3 (USART2_RX) ←→ USB 转串口模块 (CH340 / FT23
 - **1**: PA2/PA3 初始化为 USART2, `printf` 重定向到串口
 - **0**: 所有调试代码编译期裁剪, PA2/PA3 释放
 
-CubeMX 无需配置 USART2 — BSP 层 `bsp_uart.c` 自包含 GPIO 和 USART 初始化。
+需要在 CubeMX 配置 USART2
 
 ### 上位机
 
-浏览器打开 `tools/WebSerial/index.html`, 波特率 115200。
+Chrome浏览器打开 `tools/WebSerial/index.html`, 波特率 115200。
 
 ## 快速开始
 
@@ -63,14 +63,9 @@ CubeMX 无需配置 USART2 — BSP 层 `bsp_uart.c` 自包含 GPIO 和 USART 初
 - Keil MDK-ARM (uVision 5)
 - VS Code + clangd 扩展 (LLVM)
 
-### 生成工程
-
-1. 打开 `firmware/MiniAudioPlayerST/MiniAudioPlayerST.ioc` -> GENERATE CODE
-2. 在 VS Code 中打开仓库根目录，clangd 自动激活
-
 ### 生成 clangd 编译数据库
 
-CubeMX 每次重新生成代码后：
+每次添加代码，添加目录，CubeMX生成后执行
 
 ```powershell
 .\generate_compile_commands.ps1
@@ -78,7 +73,7 @@ CubeMX 每次重新生成代码后：
 
 ### 构建与烧录
 
-- TODO: 补充编译与烧录命令 / 步骤
+Keil IDE
 
 ## 测试
 
@@ -128,6 +123,19 @@ int main(void)
 #### I2C Scanner 测试 (`App/test/iic_scan_test.c`)
 
 调用 `BSP_I2C_Scanner_Test(&hi2c1, 10)`，扫描 I2C1 总线上 0x00~0x7F 地址，串口打印响应设备的地址。
+
+#### SSD1315 字体显示测试 (`App/test/ssd1315_font_test.c`)
+
+调用 `SSD1315_Font_Test_RunAll()`，每步停顿 1 秒供肉眼观察，串口同步输出 PASS/FAIL + 每个汉字的查找结果，总耗时约 10~15 秒。
+
+| 编号 | 测试项 | 验证内容 | 预期画面 |
+|------|--------|---------|---------|
+| 0 | Init | 初始化 SSD1315 | 屏幕全黑 |
+| 1 | ASCII (size 16) | 显示字符 `A B C D ~ !` 和字符串 `Hello, SSD1315!` | 第 1 行 6 个 ASCII 字符，第 2 行完整英文句子 |
+| 2 | 系统字库汉字 (FONT_TYPE_SYSTEM) | `font_cn` 字库查找并显示 9 个 UI 用字 | 第 3 行 `歌曲播放器`，第 4 行 `正在播放` |
+| 3 | 文件字库汉字 (FONT_TYPE_FILE) | `font_file_cn` 字库查找并显示 4 首歌名 | 第 1 行 `十年`，第 2 行 `月光`，第 3 行 `我的梦`，第 4 行 `时光` |
+
+> **字库说明**: `font_cn` (FONT_TYPE_SYSTEM) 内置 59 个 UI 标签用字 (如 歌曲播放器正在上下左右确定返回菜单)；`font_file_cn` (FONT_TYPE_FILE) 内置 85 个字覆盖 10 首示例歌名 (十年、月光、我的梦、时光 等)。两个独立字库分别对应播放器 UI 渲染和 SD 卡歌曲名显示两种场景。
 
 > 后续新增测试模块可追加到本节。
 
