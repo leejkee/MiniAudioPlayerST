@@ -1,6 +1,10 @@
 .claude/
 .cache/
+.opencode/
+.vscode/
+opencode.json
 compile_commands.json
+AGENTS.md
 
 # Keil MDK
 *.uvguix.*
@@ -11,3 +15,6 @@ firmware/MiniAudioPlayerST/MDK-ARM/DebugConfig/
 firmware/MiniAudioPlayerST/MDK-ARM/RTE/
 firmware/MiniAudioPlayerST/MDK-ARM/MiniAudioPlayerST/
 *.scvd
+
+# py
+__pycache__/
