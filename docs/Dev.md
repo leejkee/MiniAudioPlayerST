@@ -163,7 +163,7 @@
 |-----------|----------------------|---------------------|----------------|------|
 | audioTask | osPriority**High** | 256 (1024B) | StartAudioTask | DREQ 信号量等待 + SD 读取 + 填充缓冲 + 启动 DMA |
 | uiTask    | osPriority**Normal** | 128 (512B) | StartUITask | 仅在状态变化时刷新 OLED |
-| keyTask   | osPriority**Normal** | 64 (256B) | StartKeyTask | 20ms 轮询按键，去抖，发事件 |
+| keyTask   | osPriority**Normal** | 64 (256B) | StartKeyTask | 20ms 轮询 GPIO，按下沿发事件 |
 | mainTask  | osPriority**Normal** | 128 (512B) | StartMainTask | 主状态机，协调各模块 |
 
 > CMSIS V1 中优先级数值 **越大优先级越高**。audioTask 为最高，防止音频 underrun。
@@ -257,8 +257,7 @@ HSE (外部 8MHz 晶振)
 #### 1.1 GPIO 按键验证
 
 - 4 个 GPIO 输入引脚上拉，按下接 GND。
-- 在 keyTask 中 20ms 周期轮询 GPIO 电平。
-- 三级去抖：连续 3 次读数一致才确认有效。
+- 在 keyTask 中 20ms 周期轮询 GPIO 电平（硬件 RC 消抖，软件 20ms 间隔天然跳过抖动窗口）。
 - 验证方式：按下按键 → OLED 显示对应字符 / 串口 printf。
 
 #### 1.2 OLED 点亮验证
@@ -668,9 +667,6 @@ firmware/
     │   ├── font_cn.c              # 中文 16×16 字库（仅所需字符）
     │   ├── font_en.c              # 英文 8×16 字库
     │   └── font.h
-    ├── key/
-    │   ├── key_scanner.c
-    │   └── key_scanner.h
     └── fs/
         ├── sdcard_spi.c
         ├── sdcard_spi.h
