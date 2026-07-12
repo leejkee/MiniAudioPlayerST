@@ -26,8 +26,9 @@ static const bsp_key_pin_t key_pins[KEY_COUNT] = {
 
 /* 消抖上下文 ----------------------------------------------------------------*/
 static struct {
-    uint8_t stable_state;           /* 消抖后的稳定状态 (bitmap, 1=按下) */
+    uint8_t stable_state;            /* 消抖后的稳定状态 (bitmap, 1=按下) */
     uint8_t debounce_cnt[KEY_COUNT]; /* 每个按键的消抖计数 */
+    uint8_t edge_flags;              /* 边沿事件标记 (sticky, bit=1 表示有待消费事件) */
 } key_ctx;
 
 /* 公开函数 ------------------------------------------------------------------*/
@@ -85,7 +86,33 @@ void BSP_Key_Poll(void)
                 /* 翻转稳定状态位 */
                 key_ctx.stable_state ^= (1 << i);
                 key_ctx.debounce_cnt[i] = 0;
+
+                /* 仅在释放沿 (1→0) 设置事件标记 */
+                if (stable_bit && !raw_bit) {
+                    key_ctx.edge_flags |= (1 << i);
+                }
             }
         }
     }
+}
+
+/**
+  * @brief  获取并消费按键边沿事件
+  * @param  id: 按键 ID
+  * @retval KEY_EDGE_RELEASE: 释放沿, KEY_EDGE_NONE: 无事件
+  */
+key_edge_type_t BSP_Key_GetEvent(bsp_key_id_t id)
+{
+    if (id >= KEY_COUNT) {
+        return KEY_EDGE_NONE;
+    }
+
+    uint8_t bit_mask = (1 << id);
+
+    if (key_ctx.edge_flags & bit_mask) {
+        key_ctx.edge_flags &= ~bit_mask;  /* 消费事件, 清零标记 */
+        return KEY_EDGE_RELEASE;
+    }
+
+    return KEY_EDGE_NONE;
 }
