@@ -1,0 +1,19 @@
+# Paths excluded from clang-format (requires clang-format 18+).
+# CI should still pass explicit file globs so older toolchains stay safe.
+
+# CubeMX generated application core
+firmware/MiniAudioPlayerST/Core/**
+
+# Vendor / generated libraries
+firmware/MiniAudioPlayerST/Drivers/**
+
+# Keil project and build artifacts
+firmware/MiniAudioPlayerST/MDK-ARM/**
+
+# Generated font bitmaps (tools/FontTool)
+firmware/MiniAudioPlayerST/App/src/font_cn.c
+firmware/MiniAudioPlayerST/App/src/font_en.c
+firmware/MiniAudioPlayerST/App/src/font_file_cn.c
+firmware/MiniAudioPlayerST/App/include/font_cn.h
+firmware/MiniAudioPlayerST/App/include/font_en.h
+firmware/MiniAudioPlayerST/App/include/font_file_cn.h

@@ -1,0 +1,132 @@
+# MiniAudioPlayerST — embedded C style for App / BSP
+#
+# Base: LLVM, customized for STM32 C firmware.
+# Scope: format only App/, BSP/ (and their tests). Do NOT format Core/, Drivers/,
+#        MDK-ARM/, or generated font sources — see .clang-format-ignore and CI paths.
+#
+# Recommended clang-format: 15+ (enum-style AlignConsecutive* values).
+# CI example (check only, fail on drift):
+#   clang-format --dry-run --Werror $(git ls-files \
+#     'firmware/MiniAudioPlayerST/App/**/*.[ch]' \
+#     'firmware/MiniAudioPlayerST/BSP/**/*.[ch]')
+# Exclude generated fonts if matched by glob:
+#   ... | findstr /V /I "font_cn.c font_en.c font_file_cn.c font_cn.h font_en.h font_file_cn.h"
+#
+---
+Language: C
+BasedOnStyle: LLVM
+
+# --- Layout ---
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+
+# --- Braces (function/type on new line; if/for/while attached) ---
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterObjCDeclaration: false
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: true
+
+# --- Pointers and spacing ---
+PointerAlignment: Right
+ReferenceAlignment: Right
+DerivePointerAlignment: false
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesInAngles: Never
+SpacesInContainerLiterals: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceAfterLogicalNot: false
+SpacesBeforeTrailingComments: 2
+
+# --- Alignment (API tables / struct members / macros) ---
+AlignConsecutiveDeclarations: AcrossEmptyLinesAndComments
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignTrailingComments: true
+AlignOperands: Align
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Right
+AlignArrayOfStructures: None
+
+# --- Short constructs: prefer multi-line for reviewability ---
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: true
+BinPackArguments: true
+BinPackParameters: true
+
+# --- Line breaking ---
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+PackConstructorInitializers: NextLine
+
+# --- Empty lines ---
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+# --- Includes: never reorder (Cube USER CODE / HAL dependency order) ---
+SortIncludes: Never
+IncludeBlocks: Preserve
+SortUsingDeclarations: false
+
+# --- Comments and preprocessor ---
+ReflowComments: false
+IndentPPDirectives: None
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentGotoLabels: false
+IndentWrappedFunctionNames: false
+
+# --- Penalties (prefer staying under ColumnLimit without over-fragmenting) ---
+PenaltyBreakAssignment: 25
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 50
+PenaltyReturnTypeOnItsOwnLine: 60
+
+# --- Misc ---
+FixNamespaceComments: true
+InsertBraces: false
+RemoveBracesLLVM: false
+Standard: Latest
+...
