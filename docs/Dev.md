@@ -46,7 +46,112 @@
 
 > **按键方案说明**：PRD 要求硬件消抖（由板级 RC 电路实现），默认上拉，按下接 GND。软件侧由 FreeRTOS 按键扫描任务 20ms 轮询去抖，不依赖外部中断。
 
-#### 1.2.3 SPI1 — SD 卡（CH376S 模块）
+#### 1.2.3 SPI1 — SD 卡
+
+```mermaid
+graph TB
+    %% ═══════════════════════════════════════════════════════════
+    %% 硬件层
+    %% ═══════════════════════════════════════════════════════════
+    subgraph HW[" 硬件层 Hardware "]
+        SD[("microSD 卡<br/>FAT32 / SPI 模式<br/>──────────────<br/>物理扇区: 512B")]
+        VS1003["VS1003 解码芯片<br/>MP3/WAV 硬件解码<br/>──────────────<br/>18-bit sigma-delta DAC"]
+        OUT[("音频输出<br/>3.5mm AUX<br/>──────────────<br/>模拟音频信号")]
+    end
+
+    %% ═══════════════════════════════════════════════════════════
+    %% MCU 外设层
+    %% ═══════════════════════════════════════════════════════════
+    subgraph PERIPH[" MCU 外设层 Peripheral "]
+        SPI1["SPI1 外设<br/>──────────────<br/>PA5 SCK / PA6 MISO<br/>PA7 MOSI / PA4 CS<br/>Full-Duplex Master<br/>初始化 375kbps<br/>运行 ~12Mbps"]
+        SPI2["SPI2 外设<br/>──────────────<br/>PB13 SCK / PB14 MISO<br/>PB15 MOSI<br/>XCS: PB11 / XDCS: PB12<br/>Full-Duplex Master<br/>运行 ≤6Mbps"]
+        DMA_CH2["DMA1 Channel 2<br/>──────────────<br/>Memory → SPI2_TX<br/>Normal 模式 (非 Circular)<br/>Byte × Byte<br/>每次传输: 32 字节"]
+        EXTI10["EXTI10 中断线<br/>──────────────<br/>DREQ: PB10<br/>上升沿触发<br/>抢占优先级: 0 (最高)"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════
+    %% BSP 驱动层
+    %% ═══════════════════════════════════════════════════════════
+    subgraph BSP[" BSP 驱动层 Board Support Package "]
+        BSP_SPI["bsp_spi.c<br/>──────────────<br/>SPI 硬件抽象接口<br/>BSP_SPI_TransmitReceive8()<br/>BSP_SPI_TransmitReceive()<br/>BSP_SPI_Transmit()<br/>BSP_SPI_Receive()<br/>BSP_SPI_SetSpeed()"]
+        BSP_SD["bsp_SD.c<br/>──────────────<br/>SD 卡协议驱动<br/>BSP_SD_CardInit()　　CMD0/CMD8/ACMD41<br/>BSP_SD_ReadBlocks()　 CMD17 单块读<br/>BSP_SD_WriteBlocks()　CMD24 单块写<br/>BSP_SD_GetInfo()<br/>BSP_SD_GetState()"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════
+    %% 中间件层
+    %% ═══════════════════════════════════════════════════════════
+    subgraph MIDDLEWARE[" 中间件层 Middleware "]
+        DISKIO["user_diskio.c<br/>──────────────<br/>FatFS 磁盘 I/O 适配层<br/>disk_initialize()<br/>disk_read()<br/>disk_write()<br/>disk_ioctl()<br/>disk_status()"]
+        FATFS["FatFS (ff.c)<br/>──────────────<br/>文件系统核心<br/>f_mount()<br/>f_open()<br/>f_read()<br/>f_lseek()<br/>f_opendir() / f_readdir()<br/>f_close()"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════
+    %% 应用层
+    %% ═══════════════════════════════════════════════════════════
+    subgraph APP[" 应用层 Application (FreeRTOS Tasks) "]
+        MAIN["mainTask<br/>──────────────<br/>主状态机<br/>播放控制 / 切歌逻辑<br/>优先级: Normal"]
+        AUDIO["audioTask<br/>──────────────<br/>优先级: High (最高)<br/>等待 DREQ 信号量<br/>SD 卡读取数据<br/>填充双缓冲<br/>启动 DMA"]
+        FILE_BUF[("文件读取缓冲区<br/>──────────────<br/>uint8_t buf[N]<br/>f_read() 可变大小填充")]
+        PCM_PP[("PCM 双缓冲 Ping-Pong<br/>──────────────<br/>buf_A[32] / buf_B[32]<br/>填一块 → 发一块<br/>DREQ 触发 32B/次")]
+    end
+
+    %% ============================================================
+    %% 数据流连线 (实线 = 数据路径)
+    %% ============================================================
+
+    %% ── 链路 A: SD 卡 → 文件系统 → 应用 (文件读取) ──
+    SD      -->|"CMD17 读扇区<br/>数据令牌 + 512B 块 + CRC16"| SPI1
+    SPI1    -->|"SPI 全双工 8-bit 帧<br/>TX dummy 0xFF → RX 数据"| BSP_SPI
+    BSP_SPI -->|"uint8_t 单字节/多字节<br/>收发原语 (阻塞)"| BSP_SD
+    BSP_SD  -->|"扇区缓冲区<br/>uint8_t buf[512]<br/>DSTATUS / DRESULT"| DISKIO
+    DISKIO  -->|"512B 磁盘扇区<br/>LBA 逻辑块寻址"| FATFS
+    FATFS   -->|"文件字节流<br/>UINT bytes_read<br/>可变大小 (如 512~4096B)"| FILE_BUF
+    FILE_BUF-->|"MP3/WAV 原始数据<br/>应用层数据块"| AUDIO
+
+    %% ── 链路 B: 双缓冲 → DMA → VS1003 → 音频 (音频输出) ──
+    AUDIO   -->|"切缓冲指针<br/>填 buf_A 时用 buf_B 发送<br/>每次 32 字节"| PCM_PP
+    PCM_PP  -->|"设置 DMA 源地址<br/>Memory → Peripheral<br/>32 字节 × 1 次"| DMA_CH2
+    DMA_CH2 -->|"逐字节写入 SPI2 TXDR<br/>DMA 完成中断标记<br/>当前缓冲块可用"| SPI2
+    SPI2    -->|"XDCS 拉低选通<br/>SPI 模式 0 (CPOL=0 CPHA=0)<br/>8-bit 数据帧"| VS1003
+    VS1003  -->|"立体声 DAC 解码<br/>18-bit sigma-delta<br/>模拟音频"| OUT
+
+    %% ============================================================
+    %% 控制流连线 (虚线 = 控制/反馈路径)
+    %% ============================================================
+
+    %% DREQ 流控反馈回路
+    VS1003  -.->|"<b>DREQ 上升沿</b><br/>芯片 FIFO ≥ 32B 空闲<br/>可接收下一帧数据"| EXTI10
+    EXTI10  -.->|"xSemaphoreGiveFromISR()<br/>释放计数信号量<br/>唤醒 audioTask"| AUDIO
+    MAIN    -.->|"播放/暂停/切歌<br/>状态变更通知"| AUDIO
+
+```
+
+> **数据形态变化说明：**
+>
+> | 阶段 | 数据形式 | 大小 | 所在模块 |
+> |------|---------|------|---------|
+> | SD 卡物理存储 | 原始扇区 (含数据令牌 + CRC) | 512B 有效数据 | 硬件 |
+> | SPI 总线传输 | 8-bit 帧 (全双工, TX dummy 0xFF) | 单字节流 | SPI1 外设 |
+> | BSP SPI 接口 | `uint8_t` 字节收发 | 单字节 / 多字节数组 | `bsp_spi.c` |
+> | BSP SD 协议层 | SD 命令/响应 + 扇区数据缓冲 | `uint8_t[512]` | `bsp_SD.c` |
+> | FatFS 磁盘 I/O | 逻辑扇区 (LBA 寻址) | 512B/扇区 | `user_diskio.c` |
+> | FatFS 文件 API | 文件字节流 | 可变大小 (`UINT`) | `ff.c` |
+> | 应用文件缓冲 | 原始 MP3/WAV 字节 | 可变大小 (`f_read` 指定) | `audioTask` |
+> | PCM 双缓冲 | 待发送音频帧 | **32 字节** × 2 (Ping-Pong) | `audioTask` |
+> | DMA 传输 | Memory → Peripheral 逐字节搬运 | 32 字节/次 (Normal 模式) | DMA1 CH2 |
+> | SPI2 → VS1003 | SPI 数据帧 (XDCS 选通) | 32 字节/帧 | SPI2 外设 |
+> | VS1003 输出 | 解码后的模拟音频 | 连续信号 | VS1003 DAC |
+
+> **模块分工与职责边界：**
+>
+> | 模块 | 文件 | 职责 |
+> |------|------|------|
+> | SPI 硬件抽象 | `bsp_spi.c/h` | 封装 HAL SPI 操作，提供 `TransmitReceive8/TransmitReceive/Transmit/Receive/SetSpeed` 五个原语。不管理 CS 引脚，不关心上层协议。 |
+> | SD 卡协议驱动 | `bsp_SD.c/h` | 管理 CS 引脚，实现 SD 卡 SPI 模式协议：上电低速初始化 (CMD0/CMD8/ACMD41/CMD58)、扇区读写 (CMD17/CMD24)、卡状态与信息查询。向上提供 `ReadBlocks/WriteBlocks` 扇区级接口。 |
+> | FatFS 适配层 | `user_diskio.c` | 将 FatFS 的 `disk_read/disk_write/disk_ioctl` 等标准接口映射到 `BSP_SD_ReadBlocks/BSP_SD_WriteBlocks`。处理扇区地址转换、返回值适配。 |
+> | FatFS 文件系统 | `ff.c` | 实现 FAT32 文件系统逻辑：目录遍历、文件打开/关闭、流式读取 (`f_read`)、文件定位 (`f_lseek`)、长文件名 (LFN UTF-16LE) 支持。 |
+> | 应用层音频管理 | `audioTask` | DREQ 信号量驱动的音频数据泵：等待 DREQ → 从文件读数据到文件缓冲 → 切分 32B 块填双缓冲 → 启动 DMA 发送。 |
+> | DMA + SPI2 发送 | DMA1 CH2 / SPI2 | 硬件自动将双缓冲中的 32 字节逐字节搬到 SPI2 TX 寄存器，发送给 VS1003。Normal 模式，每次由软件手动启动。 |
 
 | 标签名 | 引脚 | 模式 |
 |--------|------|------|
@@ -69,6 +174,30 @@
 | CRC Calculation | Disable | |
 
 > **注意**：SD 卡 SPI 初始化阶段必须低速（< 400kHz），初始化成功后可在代码中动态调整预分频至 4 或 2（最高 ~12Mbps）。Cortex-M0 的 SPI1 挂在 APB2（配合 F072 实际总线是 APB1@48MHz 仍有余量），最大时钟 24MHz。
+>
+> **重要 — SPI 时钟生成机制与 SD 卡总线释放**：
+>
+> STM32 SPI 主机在 **MOSI 发送数据时才会在 SCK 上产生时钟脉冲**。如果没有 MOSI 输出（即不向 SPI_DR 写数据），SCK 保持空闲电平，SPI 总线不会有时钟活动。
+>
+> 这意味着：**每次通过 CS 拉低选中 SD 卡、发送完命令或数据后，即使 CS 已经拉高，也必须额外发送至少 1 个 dummy 字节（通常为 `0xFF`）来产生 8 个 SCK 时钟周期**。原因是：
+>
+> 1. SD 卡内部状态机需要额外时钟周期完成当前 SPI 事务的收尾（如 CRC 校验、状态寄存器更新）。
+> 2. 如果不发 dummy 字节就立即拉高 CS，SD 卡可能卡在未完成的 SPI 状态中，导致下次 CS 拉低时通信异常。
+> 3. 在 SPI 全双工模式下，发 `0xFF` 的同时 MISO 会读出数据（可忽略），这是一种安全的 "空操作时钟"。
+>
+> **典型代码模式**：
+>
+> ```c
+> /* 发送 CMD17 后释放总线 */
+> BSP_SD_ChipSelect(1);               // CS = HIGH，撤销片选
+> BSP_SPI_TransmitReceive8(&hspi1, 0xFF); // 发 dummy 字节，产生 8 个 SCK
+>                                         // 让 SD 卡完成总线释放，进入空闲
+> ```
+>
+> 该 dummy 字节应出现在以下场景：
+> - 每条 SD 命令 (CMD) 发送完毕、CS 拉高之后。
+> - 数据块读写完成、CS 拉高之后。
+> - CS 拉低（重新选中 SD 卡）之后、发送第一条命令之前（可选，但推荐，用于清空 SD 卡残留状态）。
 
 #### 1.2.4 SPI2 — VS1003 音频解码模块
 
@@ -144,9 +273,10 @@
 | _VOLUMES | 1 | 仅一个卷（SD 卡） |
 | _MAX_SS | 512 | 扇区大小 |
 | _MIN_SS | 512 | |
-| _USE_LFN | **1（启用 LFN 静态缓冲区）** | 支持长文件名 |
+| _USE_LFN | **1（启用 LFN 静态缓冲区）** | 支持长文件名（盘上 LFN 为 UTF-16LE） |
 | _MAX_LFN | 64 | 最长文件名（按 PRD 约束） |
-| _CODE_PAGE | **936（简体中文 GBK）** | 中文文件名支持 |
+| _LFN_UNICODE | **1（UTF-16 API）** | `TCHAR`/`f_readdir` 等路径与文件名为 UTF-16，与字库 Unicode 一致；**不使用 GBK** |
+| _CODE_PAGE | **437** | 仅 SFN/OEM 兼容兜底；中文显示与打开文件主路径一律走 LFN Unicode |
 | _USE_ERASE | 0 | 不需要 |
 | _FS_LOCK | 1 | 文件锁定 |
 | _FS_REENTRANT | **1（启用）** | FreeRTOS 下需要重入保护 |
@@ -217,462 +347,9 @@ HSE (外部 8MHz 晶振)
 
 > **说明**：选用外部 8MHz 晶振精度比内部 RC 高，音频场景下更稳定。若板上只有一个 8MHz 无源晶振且未接负载电容，需确认起振正常后再锁定此时钟方案。
 
-### 1.8 项目生成设置
-
-**Project Manager → Project**：
-
-| 配置项 | 值 |
-|--------|-----|
-| Project Name | `MiniAudioPlayerST` |
-| Project Location | `firmware/`（仓库根目录下的 firmware 文件夹） |
-| Application Structure | **Advanced**（分开 Core 和 Drivers 目录） |
-| Toolchain / IDE | **MDK-ARM**（Keil），或 **STM32CubeIDE** |
-| Minimum Heap Size | `0x200` (512B) |
-| Minimum Stack Size | `0x400` (1KB) |
-
-**Code Generator**：
-
-| 配置项 | 值 |
-|--------|-----|
-| Copy all used libraries into the project folder | ✅ 勾选 |
-| Generate peripheral initialization as a pair of `.c/.h` files | ✅ 勾选 |
-| **Keep User Code when re-generating** | ✅ 勾选（**最关键**） |
-| Delete previously generated files when not re-generated | ❌ 不勾选 |
-| Enable Full Assert | ✅ 开发阶段勾选 |
-
-### 1.9 生成代码
-
-点击 **GENERATE CODE** → 等待完成 → 在 IDE 中打开工程。
 
 ---
 
-## 2. 功能开发步骤
-
-按 PRD 第 11 节的五阶段规划展开。
-
-### 阶段 1：硬件驱动验证
-
-**目标**：逐个确认硬件焊接和通信链路正确。
-
-#### 1.1 GPIO 按键验证
-
-- 4 个 GPIO 输入引脚上拉，按下接 GND。
-- 在 keyTask 中 20ms 周期轮询 GPIO 电平（硬件 RC 消抖，软件 20ms 间隔天然跳过抖动窗口）。
-- 验证方式：按下按键 → OLED 显示对应字符 / 串口 printf。
-
-#### 1.2 OLED 点亮验证
-
-- 移植 SSD1306 I2C 驱动。
-- 实现画点/画线/写字符基础函数。
-- 显示 "Hello World" 全屏。
-- 确认 I2C 地址正确（0x3C 或 0x3D）。
-- 验证局部刷新能力（非全屏刷新，减少 I2C 通信量）。
-
-**参考文件**：`firmware/App/ui/ssd1306.h`、`ssd1306.c`
-
-#### 1.3 SD 卡读写验证
-
-- 实现 SPI1 操作 SD 卡的基础函数（`sd_spi_write()` / `sd_spi_read()`）。
-- 实现 `disk_initialize()` → 上电发送 CMD0 → CMD8 → ACMD41 初始化序列。
-- 实现 `disk_read()` / `disk_write()` → 能读写单个扇区。
-- 挂载 FATFS → `f_mount()` 返回 FR_OK。
-- 创建/读取一个测试文件。
-
-**参考文件**：`firmware/App/fs/sdcard_spi.c`、`firmware/Middleware/Third_Party/FatFs/src/user_diskio.c`
-
-#### 1.4 VS1003 发声验证
-
-- 实现 VS1003 SPI 命令接口（`vs1003_write_reg()` / `vs1003_read_reg()`）。
-- 初始化序列：硬件复位 → 软件复位 → 设置音量/时钟/低音增强等 SCI 寄存器。
-- **正弦波测试**：SCI_MODE 中置位 TEST bit，写入频率字 → 应发出单音。
-- 再通过 SPI 发送一段 MCU Flash 中预存的简短 MP3 数据 → 确认解码正常。
-
-**参考文件**：`firmware/App/audio/vs1003.c`、`vs1003.h`
-
-### 阶段 2：基础播放链路
-
-**目标**：SD 卡 → FatFS → VS1003 完整播放第一首 MP3。
-
-#### 2.1 文件扫描模块
-
-- 上电后扫描 SD 卡根目录 `/`。
-- 筛选后缀 `.mp3`（大小写不敏感）。
-- 文件名去后缀存储到数组 `file_list[]`，每项 ≤ 64 字符。
-- 限制最大 20 个文件（PRD 第 9.4 节）。
-
-```c
-uint8_t fs_scan_mp3_files(const char *path);
-// 返回找到的文件数，0 表示无音乐文件
-```
-
-#### 2.2 DREQ 流控 + DMA 双缓冲
-
-- 配置 DREQ 外部中断（上升沿触发）。
-- 双缓冲结构：
-  ```c
-  uint8_t audio_buf[2][32];   // 两个 32 字节缓冲区
-  volatile uint8_t active_buf; // 当前 DMA 正在发送的缓冲区索引
-  volatile uint8_t fill_buf;   // 需要填充的缓冲区索引
-  ```
-
-- DREQ ISR 流程：
-  1. 清中断标志
-  2. `xSemaphoreGiveFromISR(dreq_sem, &xHigherPriorityTaskWoken);`
-  3. `portYIELD_FROM_ISR(xHigherPriorityTaskWoken);`
-
-- audioTask 流程（PRD 9.5 节推荐方案）：
-  1. 等待 DREQ 信号量（`xSemaphoreTake()`）
-  2. 找到空闲 buffer → `f_read()` 读取 32 字节
-  3. 启动 DMA 发送 32 字节到 VS1003
-  4. 若 `f_read` 返回 0 → 标记播放结束
-
-#### 2.3 打通完整链路
-
-- `f_open()` → 循环 `f_read()` 32 字节 → 等 DREQ → 发 SPI2 DMA → 直到文件结束。
-- 验证方式：SD 卡存一首示例 MP3，上电后自动播放 5 秒，音频正常输出。
-
-### 阶段 3：UI 框架
-
-**目标**：屏幕渲染 + 按键交互正确，暂不接入播放控制。
-
-#### 3.1 字库制作
-
-Flash 仅 64KB，按 PRD 5.4 节 **仅提取实际使用的字符点阵**：
-
-- 中文字符集 = 固定 UI 文字（"菜单"、"音量"、"播放模式"、"音量调节"、播放模式名等） + 所有歌曲文件名中的中文。
-- 英文字符集 = 常用 ASCII（0x20–0x7E），8×16 像素。
-- 制作工具：PCtoLCD2002 或在线点阵生成工具。
-- 格式：
-  ```c
-  // 中文 16×16，每字 32 字节
-  typedef struct {
-      uint16_t code;         // GBK 编码
-      uint8_t  bitmap[32];   // 16×16 点阵
-  } font16_t;
-  ```
-- 声明为 `const` 放入 Flash，不占 RAM。
-- 查找函数：`const uint8_t* font_find_16(uint16_t gbk_code)` → 返回 bitmap 指针。
-
-#### 3.2 OLED UI 渲染
-
-**主界面（PRD 5.1 节）**：
-
-```
-┌──────────────────────────────────┐
-│ 第 1 行：Logo  │ 音量: 70% │ 模式图标 │
-│ 第 2 行：歌曲名（超 8 汉字则滚动）     │
-│ 第 3 行：上一曲 │ 播放/暂停 │ 下一曲    │
-│ 第 4 行：[01:23]/[04:56]            │
-└──────────────────────────────────┘
-```
-
-**菜单界面（PRD 5.2 节）**：
-
-```
-┌─────────────────────┐
-│ 第 1 行：Menu 标题    │
-│ 第 2 行：> 音量调节   │
-│ 第 3 行：  播放模式   │
-│ 第 4 行：  文件列表   │
-└─────────────────────┘
-```
-
-- 歌曲名滚动：超 8 汉字（16 英文字符）时，定时器每 500ms 左移 1 列（像素级滚动），到末尾后停顿 2s 回弹。
-- **仅在数据变化时刷新屏**（PRD 8.1 节要求），减少 I2C 通信量。
-
-#### 3.3 按键扫描任务
-
-- 20ms 周期轮询。
-- 区分短按（< 1s）与长按（≥ 1s）。
-- 长按连发：R/L 键在音量调节界面按下 1s 后，每 100ms 重复发射一次事件。
-- 按键事件通过 FreeRTOS 消息队列发给主状态机任务：
-
-  ```c
-  typedef enum { KEY_MENU, KEY_OK, KEY_L, KEY_R } key_id_t;
-
-  typedef struct {
-      key_id_t id;
-      uint8_t  is_long_press;
-  } key_event_t;
-  ```
-
-### 阶段 4：完整功能集成
-
-**目标**：所有 PRD 功能跑通。
-
-#### 4.1 主状态机
-
-实现 PRD 第 10 节状态机：
-
-```c
-typedef enum {
-    STATE_INIT,
-    STATE_MAIN,
-    STATE_MENU,
-    STATE_VOLUME_ADJ,
-    STATE_PLAY_MODE,
-    STATE_ERROR
-} system_state_t;
-
-typedef enum { PLAY_STOP, PLAY_PLAYING, PLAY_PAUSED } play_state_t;
-
-typedef enum {
-    MODE_SEQUENTIAL,   // 顺序播放
-    MODE_LOOP_ALL,     // 列表循环
-    MODE_LOOP_ONE,     // 单曲循环
-    MODE_SHUFFLE       // 随机播放
-} play_mode_t;
-```
-
-**导航栈**（PRD 10.3 节）：
-
-```c
-#define NAV_STACK_DEPTH_MAX 4
-typedef struct {
-    system_state_t stack[NAV_STACK_DEPTH_MAX];
-    int8_t sp;
-} nav_stack_t;
-
-// Menu 短按 → PopNavigationStack()
-// Menu 长按 → ClearNavigationStack()
-```
-
-#### 4.2 播放控制
-
-| 函数 | 说明 |
-|------|------|
-| `player_play(uint8_t index)` | 打开指定文件，开启 DREQ 流控循环 |
-| `player_pause()` | 停止 DMA，记录当前文件偏移 |
-| `player_resume()` | 从当前位置继续 |
-| `player_next()` | 根据播放模式计算下一首索引 |
-| `player_prev()` | 上一首 |
-| `player_stop()` | 停止并关闭文件 |
-
-#### 4.3 音量控制
-
-- VS1003 SCI_VOL 寄存器（地址 `0x0B`）：
-  ```c
-  // vol_percent ∈ {0, 10, 20, ..., 100}
-  // 音量值 = (100 - vol_percent) * 0xFE / 100
-  // 范围: 0x00 (最大声) ~ 0xFE (最轻)
-  // 静音: 0xFEFE (左右声道均为 0xFE)
-  ```
-- 仅在变化时写入一次 VS1003。
-
-#### 4.4 播放模式切换
-
-R 键正向循环 / L 键反向循环（PRD 10.4 节）：
-
-```
-顺序播放 → 列表循环 → 单曲循环 → 随机播放 → 顺序播放
-```
-
-每次切换更新 OLED 第 1 行的模式图标。
-
-#### 4.5 播放时间显示
-
-- 通过 `f_tell()` 计算已读取字节数粗估：
-  ```
-  elapsed_sec ≈ bytes_played / (bitrate / 8)
-  ```
-- 或解析 VS1003 的 SCI_HDAT0/SCI_HDAT1 获取帧头信息。
-- 1 秒周期定时器更新 OLED 第 4 行 `[mm:ss]/[MM:SS]`。
-
-### 阶段 5：异常处理与打磨
-
-| 异常项 | 检测方式 | 用户可见行为 | 恢复方式 |
-|--------|---------|-------------|---------|
-| SD 卡未插入 | 初始化时 retry 3 次失败 | "No SD Card" | 5s 定时重试 |
-| SD 卡无 .mp3 | `file_count == 0` | "No Music Files" | 等待插拔 SD 卡 |
-| VS1003 初始化失败 | `SCI_STATUS` 读回异常 | "Decoder Error" | 自动重试 3 次 |
-| 播放中拔卡 | `f_read()` 返回错误 | "SD Removed"，停止播放 | 插卡后重新挂载 |
-| FS 挂载失败 | `f_mount()` ≠ FR_OK | "FS Error" | 自动重试 |
-
----
-
-## 3. 工程化注意事项
-
-### 3.1 内存预算
-
-Flash 64KB / RAM 16KB，严格遵守：
-
-| 约束 | 值 |
-|------|-----|
-| 文件列表 | 20 首 × 64 字节 = 1280B（约 1.25KB RAM） |
-| 双缓冲 | 2 × 32 = 64B（可忽略） |
-| OLED 显存 | 128×64/8 = 1024B（1KB RAM） |
-| FreeRTOS 堆 | 4KB（CubeMX 中 `TOTAL_HEAP_SIZE = 4096`） |
-| 字库 | 全部 `const`，放 Flash，不占 RAM |
-
-- `printf` 会显著增加 Flash 占用（约 5~10KB），开发阶段用于调试，发布版本关闭或替换为轻量实现。
-- 在 `startup_stm32f072c8tx.s` 中检查：
-  ```asm
-  Stack_Size      EQU     0x00000400   ; 1KB
-  Heap_Size       EQU     0x00000200   ; 512B
-  ```
-
-### 3.2 CubeMX 重新生成纪律
-
-- **所有用户代码**必须写在 `/* USER CODE BEGIN XXX */` … `/* USER CODE END XXX */` 注释块内。
-- 不要在 CubeMX 生成的文件中在注释块外添加 `#include` 或变量声明。
-- App 层代码放在独立文件夹 `firmware/App/` 中，CubeMX 不会删除此目录。
-- 每次 CubeMX 重新生成前建议 `git stash` → 生成后再 `git stash pop`，确保不丢失用户代码。
-
-### 3.3 SPI 片选管理
-
-- SD 卡（SPI1）与 VS1003（SPI2）使用两组独立 SPI，互不冲突。
-- VS1003 内部有 **XCS（命令 CS）** 与 **XDCS（数据 CS）**，必须分别控制，两者不可同时为低。
-- 切换 SPI 设备前，先拉高当前 CS，再拉低目标 CS。
-
-### 3.4 DREQ 中断安全
-
-**ISR 中只做三件事**：
-
-1. 清中断标志
-2. `xSemaphoreGiveFromISR()` 给 audioTask
-3. 需要时 `portYIELD_FROM_ISR()`
-
-**ISR 中绝不调用**：`f_read()`、`HAL_SPI_Transmit_DMA()`、任何可能阻塞的函数。这些必须在 audioTask 中执行。
-
-### 3.5 音频缓冲区管理
-
-```
-缓冲区状态机:
-[EMPTY] --f_read()--> [FULL] --DMA start--> [SENDING] --DMA TC--> [EMPTY]
-```
-
-- `audio_buf[0]` 和 `audio_buf[1]` 各自维护状态标记。
-- DMA 传输完成中断中：将 buffer 标记为 EMPTY → 通知 audioTask。
-- audioTask 伪代码：
-
-  ```c
-  while (1) {
-      xSemaphoreTake(dreq_sem, portMAX_DELAY);
-      buf = get_empty_buffer();
-      if (buf) {
-          f_read(&file, buf->data, 32, &br);
-          if (br == 0) { /* 播完 */ break; }
-          HAL_SPI_Transmit_DMA(&hspi2, buf->data, 32);
-      } else {
-          underrun_count++;
-      }
-  }
-  ```
-
-### 3.6 文件名编码与字库
-
-- SD 卡文件名为 GBK 编码 → FatFS `f_readdir` 返回的 `fname` 直接是 GBK。
-- 显示时，用 GBK 编码查字库 → 获得 bitmap → 画到 OLED。
-- **字库生成流程**：
-  1. 统计所有歌曲文件名 + UI 固定文字中的中文
-  2. 去重得到字符集合
-  3. 用 PCtoLCD2002 生成 16×16 点阵
-  4. 存为 C `const` 数组，放入 Flash
-- 未收录字符显示占位符 "□"。
-
-### 3.7 `.gitignore` 建议
-
-```gitignore
-# Keil IDE
-*.uvguix.*
-*.scvd
-*.uvoptx
-*.dbgconf
-Objects/
-Listings/
-DebugConfig/
-
-# CubeMX
-*.mxproject
-
-# 编译产物
-*.o
-*.d
-*.crf
-
-# 临时文件
-*.bak
-*.tmp
-```
-
-- `.ioc` 文件务必提交 git。
-- `Drivers/`、`Middleware/` 完整提交。
-
-### 3.8 调试建议
-
-1. **串口日志**：选用一个空闲 USART（如 USART2 PA2/PA3 或 PA14/PA15 的 SWCLK/SWDIO 之外引脚）输出日志，或使用 SWO（ITM）输出。
-2. **分段验证**：每写完一个驱动，单独烧录测试，不要一次性整合后调试。
-3. **断言**：开发阶段开启 `configASSERT()`，捕获空指针/参数越界。
-4. **栈水印**：每个任务运行时调用 `uxTaskGetStackHighWaterMark()`，确定合适栈大小后压至安全值 + 20%。
-
----
-
-## 4. 附录
-
-### 4.1 外设引脚分配总览
-
-| 外设 | 信号 | 引脚 | 备注 |
-|------|------|------|------|
-| SPI1 (SD) | SCK | PA5 | |
-| SPI1 (SD) | MISO | PA6 | |
-| SPI1 (SD) | MOSI | PA7 | |
-| SPI1 (SD) | CS | PA4 | 软件控制 |
-| SPI2 (VS1003) | SCK | PB13 | |
-| SPI2 (VS1003) | MISO | PB14 | |
-| SPI2 (VS1003) | MOSI | PB15 | |
-| SPI2 (VS1003) | XCS | PB11 | 命令片选 |
-| SPI2 (VS1003) | XDCS | PB12 | 数据片选 |
-| GPIO (VS1003) | DREQ | PB10 | 上升沿 EXTI |
-| I2C1 (OLED) | SCL | PB6 | |
-| I2C1 (OLED) | SDA | PB7 | |
-| GPIO (KEY) | MENU | PA8 | 上拉 |
-| GPIO (KEY) | OK | PA9 | 上拉 |
-| GPIO (KEY) | L | PA10 | 上拉 |
-| GPIO (KEY) | R | PA11 | 上拉 |
-
-### 4.2 推荐目录结构（CubeMX 生成后手工补充）
-
-```
-firmware/
-├── MiniAudioPlayerST.ioc          # CubeMX 项目文件（纳入版本控制）
-├── Core/
-│   ├── Inc/
-│   │   ├── main.h
-│   │   ├── stm32f0xx_it.h
-│   │   └── stm32f0xx_hal_conf.h
-│   ├── Src/
-│   │   ├── main.c                 # 在 USER CODE 区域添加初始化调用
-│   │   ├── stm32f0xx_it.c         # 中断服务程序
-│   │   └── freertos.c             # FreeRTOS 任务入口函数
-│   └── Startup/
-│       └── startup_stm32f072c8tx.s
-├── Drivers/
-│   ├── CMSIS/
-│   └── STM32F0xx_HAL_Driver/
-├── Middleware/
-│   ├── Third_Party/
-│   │   └── FatFs/                 # FatFS 源码
-│   └── FreeRTOS/
-└── App/                           # 【手工创建 — 应用层代码】
-    ├── audio/
-    │   ├── vs1003.c
-    │   ├── vs1003.h
-    │   ├── audio_player.c
-    │   └── audio_player.h
-    ├── ui/
-    │   ├── ssd1306.c
-    │   ├── ssd1306.h
-    │   ├── ui_render.c
-    │   ├── ui_render.h
-    │   ├── font_cn.c              # 中文 16×16 字库（仅所需字符）
-    │   ├── font_en.c              # 英文 8×16 字库
-    │   └── font.h
-    └── fs/
-        ├── sdcard_spi.c
-        ├── sdcard_spi.h
-        ├── file_scanner.c
-        └── file_scanner.h
-```
 
 ### 4.3 关键寄存器速查
 
