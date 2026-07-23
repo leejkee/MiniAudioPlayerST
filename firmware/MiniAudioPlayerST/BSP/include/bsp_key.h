@@ -40,6 +40,13 @@ typedef enum {
 /* 公开 API ------------------------------------------------------------------*/
 
 /**
+  * @brief  按键模块初始化
+  * @note   启动 TIM1 中断 (10ms 周期), 为 BSP_Key_Poll() 提供时基。
+  *         在 main.c 的 MX_TIM1_Init() 之后调用。
+  */
+void BSP_Key_Init(void);
+
+/**
   * @brief  读取单个按键的消抖后电平
   * @param  id: 按键 ID
   * @retval 0: 按下 (低电平), 1: 释放 (高电平)

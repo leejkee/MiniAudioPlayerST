@@ -18,14 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "i2c.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ssd1315_font_test.h"
 #include "bsp_key.h"
 /* USER CODE END Includes */
 
@@ -93,9 +94,10 @@ int main(void)
   MX_I2C1_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  SSD1315_Font_Test_RunAll();
-  HAL_TIM_Base_Start_IT(&htim1);  /* 启动 TIM1 中断, 10ms 周期消抖扫描 */
+  BSP_Key_Init();  /* 按键模块初始化: 启动 TIM1 10ms 消抖扫描 */
 
   /* USER CODE END 2 */
 
@@ -158,17 +160,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/**
-  * @brief  TIM1 周期中断回调 (每 10ms)
-  * @note   调用 BSP_Key_Poll() 执行按键消抖扫描。
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM1) {
-        BSP_Key_Poll();
-    }
-}
 
 /* USER CODE END 4 */
 

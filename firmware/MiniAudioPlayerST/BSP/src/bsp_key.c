@@ -10,6 +10,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_key.h"
+#include "tim.h"
 
 /* 按键引脚查找表 ------------------------------------------------------------*/
 typedef struct {
@@ -32,6 +33,15 @@ static struct {
 } key_ctx;
 
 /* 公开函数 ------------------------------------------------------------------*/
+
+/**
+  * @brief  按键模块初始化
+  * @note   启动 TIM1 周期中断 (10ms), 为消抖扫描提供时基。
+  */
+void BSP_Key_Init(void)
+{
+    HAL_TIM_Base_Start_IT(&htim1);
+}
 
 /**
   * @brief  读取单个按键的消抖后电平
@@ -115,4 +125,16 @@ key_edge_type_t BSP_Key_GetEvent(bsp_key_id_t id)
     }
 
     return KEY_EDGE_NONE;
+}
+
+/**
+  * @brief  TIM1 周期中断回调 (每 10ms)
+  * @note   重写 HAL 的 __weak 回调。调用 BSP_Key_Poll() 执行按键消抖扫描。
+  *         放在 bsp_key.c 而非 main.c, 保持 TIM1 → 按键的逻辑内聚在 BSP 层。
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM1) {
+        BSP_Key_Poll();
+    }
 }
