@@ -28,6 +28,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_key.h"
+#include "sd_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,6 +99,7 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
   BSP_Key_Init();  /* 按键模块初始化: 启动 TIM1 10ms 消抖扫描 */
+  SD_Test_Run();   /* SD 卡测试: 挂载 → 列出根目录 → 卸载 */
 
   /* USER CODE END 2 */
 
