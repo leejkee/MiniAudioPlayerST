@@ -24,6 +24,7 @@ FATFS USERFatFS;    /* File system object for USER logical drive */
 FIL USERFile;       /* File object for USER */
 
 /* USER CODE BEGIN Variables */
+TCHAR TUSERPath[4]; /* USER logical drive path (TCHAR for LFN support) */
 
 /* USER CODE END Variables */
 
@@ -34,19 +35,13 @@ void MX_FATFS_Init(void)
 
   /* USER CODE BEGIN Init */
   /* additional user code for init */
+#if _LFN_UNICODE
+  /* 将 char USERPath 转为 WCHAR TUSERPath (驱动路径总是 ASCII) */
+  for (int i = 0; i < 4; i++){
+ TUSERPath[i] = (WCHAR)USERPath[i];
+  }
+#endif
   /* USER CODE END Init */
-}
-
-/**
-  * @brief  Gets Time from RTC
-  * @param  None
-  * @retval Time in DWORD
-  */
-DWORD get_fattime(void)
-{
-  /* USER CODE BEGIN get_fattime */
-  return 0;
-  /* USER CODE END get_fattime */
 }
 
 /* USER CODE BEGIN Application */

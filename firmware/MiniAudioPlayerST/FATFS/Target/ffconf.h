@@ -127,7 +127,7 @@
 /  memory for the working buffer, memory management functions, ff_memalloc() and
 /  ff_memfree(), must be added to the project. */
 
-#define _LFN_UNICODE    0 /* 0:ANSI/OEM or 1:Unicode */
+#define _LFN_UNICODE    1 /* 0:ANSI/OEM or 1:Unicode */
 /* This option switches character encoding on the API. (0:ANSI/OEM or 1:Unicode)
 /  To use Unicode string for the path name, enable LFN feature and set _LFN_UNICODE
 /  to 1. This option also affects behavior of string I/O functions. */
@@ -205,10 +205,10 @@
 / System Configurations
 /----------------------------------------------------------------------------*/
 
-#define _FS_NORTC	0
+#define _FS_NORTC	1
 #define _NORTC_MON	6
-#define _NORTC_MDAY	4
-#define _NORTC_YEAR	2015
+#define _NORTC_MDAY	24
+#define _NORTC_YEAR	2026
 /* The _FS_NORTC option switches timestamp feature. If the system does not have
 /  an RTC function or valid timestamp is not needed, set _FS_NORTC to 1 to disable
 /  the timestamp feature. All objects modified by FatFs will have a fixed timestamp

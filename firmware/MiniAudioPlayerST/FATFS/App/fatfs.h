@@ -39,6 +39,7 @@ extern FIL USERFile; /* File object for USER */
 void MX_FATFS_Init(void);
 
 /* USER CODE BEGIN Prototypes */
+extern TCHAR TUSERPath[4]; /* USER logical drive path (TCHAR for LFN support) */
 
 /* USER CODE END Prototypes */
 #ifdef __cplusplus

@@ -35,6 +35,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
+#include "bsp_SD.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -81,7 +82,11 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-    Stat = STA_NOINIT;
+    if (BSP_SD_Init() == BSP_SD_OK) {
+        Stat = 0;
+    } else {
+        Stat = STA_NOINIT;
+    }
     return Stat;
   /* USER CODE END INIT */
 }
@@ -96,7 +101,11 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    Stat = STA_NOINIT;
+    if (BSP_SD_GetState() == BSP_SD_STATE_READY) {
+        Stat = 0;
+    } else {
+        Stat = STA_NOINIT;
+    }
     return Stat;
   /* USER CODE END STATUS */
 }
@@ -117,7 +126,19 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-    return RES_OK;
+    bsp_sd_status_t st;
+
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+    if (!buff || !count)    return RES_PARERR;
+
+    st = BSP_SD_ReadBlocks(sector, buff, count);
+    switch (st) {
+        case BSP_SD_OK:          return RES_OK;
+        case BSP_SD_ERR_PARAM:   return RES_PARERR;
+        case BSP_SD_ERR_NOT_READY:
+        case BSP_SD_ERR_NO_CARD: return RES_NOTRDY;
+        default:                 return RES_ERROR;
+    }
   /* USER CODE END READ */
 }
 
@@ -138,8 +159,19 @@ DRESULT USER_write (
 )
 {
   /* USER CODE BEGIN WRITE */
-  /* USER CODE HERE */
-    return RES_OK;
+    bsp_sd_status_t st;
+
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+    if (!buff || !count)    return RES_PARERR;
+
+    st = BSP_SD_WriteBlocks(sector, buff, count);
+    switch (st) {
+        case BSP_SD_OK:          return RES_OK;
+        case BSP_SD_ERR_PARAM:   return RES_PARERR;
+        case BSP_SD_ERR_NOT_READY:
+        case BSP_SD_ERR_NO_CARD: return RES_NOTRDY;
+        default:                 return RES_ERROR;
+    }
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -159,8 +191,30 @@ DRESULT USER_ioctl (
 )
 {
   /* USER CODE BEGIN IOCTL */
-    DRESULT res = RES_ERROR;
-    return res;
+    bsp_sd_info_t info;
+
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+
+    switch (cmd) {
+        case CTRL_SYNC:
+            return (BSP_SD_Sync() == BSP_SD_OK) ? RES_OK : RES_ERROR;
+
+        case GET_SECTOR_COUNT:
+            if (BSP_SD_GetInfo(&info) != BSP_SD_OK) return RES_ERROR;
+            *(DWORD *)buff = info.sector_count;
+            return RES_OK;
+
+        case GET_SECTOR_SIZE:
+            *(WORD *)buff = 512;
+            return RES_OK;
+
+        case GET_BLOCK_SIZE:
+            *(DWORD *)buff = 1;
+            return RES_OK;
+
+        default:
+            return RES_PARERR;
+    }
   /* USER CODE END IOCTL */
 }
 #endif /* _USE_IOCTL == 1 */
