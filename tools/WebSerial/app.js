@@ -24,6 +24,7 @@
   let rxCount     = 0;
   let txCount     = 0;
   let readClosed  = null;    // Promise that resolves when reader cancels
+  const utf8decoder = new TextDecoder('utf-8', { fatal: false });
 
   /* ---- helpers ---- */
   function fmtTS() {
@@ -62,7 +63,7 @@
                 const { value, done } = await reader.read();
                 if (done) break;
                 if (value) {
-                  const text = new TextDecoder().decode(value);
+                  const text = utf8decoder.decode(value, { stream: true });
                   appendText(text);
                 }
               }
