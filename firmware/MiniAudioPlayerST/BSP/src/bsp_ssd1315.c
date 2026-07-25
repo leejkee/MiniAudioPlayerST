@@ -1,16 +1,40 @@
-#include "ssd1315.h"
-#include "bsp_oled.h"
+#include "bsp_ssd1315.h"
+#include "i2c.h"
 #include "font_en.h"
 #include "font_cn.h"
 #include "font_file_cn.h"
 #include <stdlib.h>
+
+/* ========================================================================== */
+/* I2C 底层 — SSD1315 专用                                                  */
+/* ========================================================================== */
+
+#define BSP_SSD1315_I2C_ADDR  (0x3C << 1)
+#define BSP_SSD1315_TIMEOUT   100
+
+static void BSP_SSD1315_WriteCmd(uint8_t command)
+{
+    uint8_t data[2] = {0x00, command}; /* 0x00 = 命令模式 */
+    HAL_I2C_Master_Transmit(&hi2c1, BSP_SSD1315_I2C_ADDR, data, 2, BSP_SSD1315_TIMEOUT);
+}
+
+static void BSP_SSD1315_WriteData(uint8_t *data, uint16_t len)
+{
+    /* 控制字节 + 数据必须在同一次 I2C 事务中发送 */
+    static uint8_t buf[129];  /* 1 控制字节 + 最大 128 数据字节 */
+    buf[0] = 0x40;            /* 0x40 = 数据模式 (Co=0, D/C#=1) */
+    for (uint16_t i = 0; i < len && i < 128; i++) {
+        buf[i + 1] = data[i];
+    }
+    HAL_I2C_Master_Transmit(&hi2c1, BSP_SSD1315_I2C_ADDR, buf, len + 1, HAL_MAX_DELAY);
+}
 
 /*
  * ============================================================================
  * GDDRAM 显存模型 (SSD1315, 128x64 单色 OLED)
  * ============================================================================
  *
- *  显存数组: uint8_t SSD1315_GRAM[8][128];  共 1024 字节
+ *  显存数组: uint8_t BSP_SSD1315_GRAM[8][128];  共 1024 字节
  *            [页 0~7][列 0~127]
  *
  *  物理映射 (默认: A0h + C0h, 未做重映射):
@@ -26,7 +50,7 @@
  *
  *  每个字节 = 一列中同一页的 8 个像素:
  *
- *    SSD1315_GRAM[page][col]:
+ *    BSP_SSD1315_GRAM[page][col]:
  *
  *      屏幕坐标 (col, page*8 + bit)
  *      ┌───┐
@@ -67,98 +91,98 @@
  *    page = y / 8;
  *    bit  = y % 8;
  *
- *    写像素: SSD1315_GRAM[page][x] |=  (1 << bit);  // 点亮
- *    擦像素: SSD1315_GRAM[page][x] &= ~(1 << bit);  // 熄灭
+ *    写像素: BSP_SSD1315_GRAM[page][x] |=  (1 << bit);  // 点亮
+ *    擦像素: BSP_SSD1315_GRAM[page][x] &= ~(1 << bit);  // 熄灭
  *
  * ============================================================================
  */
 
-static uint8_t SSD1315_GRAM[8][128];
+static uint8_t BSP_SSD1315_GRAM[8][128];
 
 static uint8_t dirty_pages; // 1 字节，每个 bit 标记一页是否脏
 
-void SSD1315_Init(void) {
-  BSP_OLED_WriteCmd(0xAE); // 1. 先关显示
+void BSP_SSD1315_Init(void) {
+  BSP_SSD1315_WriteCmd(0xAE); // 1. 先关显示
 
-  BSP_OLED_WriteCmd(0xD5); // 2. 时钟分频 / 振荡频率
-  BSP_OLED_WriteCmd(0x80);
+  BSP_SSD1315_WriteCmd(0xD5); // 2. 时钟分频 / 振荡频率
+  BSP_SSD1315_WriteCmd(0x80);
 
-  BSP_OLED_WriteCmd(0xA8); // 3. MUX 比例 = 63 (64 行), 最大分辨率
-  BSP_OLED_WriteCmd(0x3F);
+  BSP_SSD1315_WriteCmd(0xA8); // 3. MUX 比例 = 63 (64 行), 最大分辨率
+  BSP_SSD1315_WriteCmd(0x3F);
 
-  BSP_OLED_WriteCmd(0xD3); // 4. 显示偏移 = 0
-  BSP_OLED_WriteCmd(0x00);
+  BSP_SSD1315_WriteCmd(0xD3); // 4. 显示偏移 = 0
+  BSP_SSD1315_WriteCmd(0x00);
 
-  BSP_OLED_WriteCmd(0x40); // 5. 显示起始行 = 0
+  BSP_SSD1315_WriteCmd(0x40); // 5. 显示起始行 = 0
 
-  BSP_OLED_WriteCmd(0x8D); // 6. 使能内部电荷泵
-  BSP_OLED_WriteCmd(0x14); //    7.5V
+  BSP_SSD1315_WriteCmd(0x8D); // 6. 使能内部电荷泵
+  BSP_SSD1315_WriteCmd(0x14); //    7.5V
 
-  BSP_OLED_WriteCmd(0x20); // 7. 寻址模式 = 水平
-  BSP_OLED_WriteCmd(0x00);
+  BSP_SSD1315_WriteCmd(0x20); // 7. 寻址模式 = 水平
+  BSP_SSD1315_WriteCmd(0x00);
 
-  BSP_OLED_WriteCmd(0xA1); // 8. Segment 重映射 (左右镜像)
-  BSP_OLED_WriteCmd(0xC8); // 9. COM 扫描方向 (上下翻转)
+  BSP_SSD1315_WriteCmd(0xA1); // 8. Segment 重映射 (左右镜像)
+  BSP_SSD1315_WriteCmd(0xC8); // 9. COM 扫描方向 (上下翻转)
 
-  BSP_OLED_WriteCmd(0xDA); // 10. COM 引脚配置
-  BSP_OLED_WriteCmd(0x12);
+  BSP_SSD1315_WriteCmd(0xDA); // 10. COM 引脚配置
+  BSP_SSD1315_WriteCmd(0x12);
 
-  BSP_OLED_WriteCmd(0x81); // 11. 对比度
-  BSP_OLED_WriteCmd(0x7F);
+  BSP_SSD1315_WriteCmd(0x81); // 11. 对比度
+  BSP_SSD1315_WriteCmd(0x7F);
 
-  BSP_OLED_WriteCmd(0xD9); // 12. 预充电周期
-  BSP_OLED_WriteCmd(0xF1);
+  BSP_SSD1315_WriteCmd(0xD9); // 12. 预充电周期
+  BSP_SSD1315_WriteCmd(0xF1);
 
-  BSP_OLED_WriteCmd(0xDB); // 13. VCOMH 电压
-  BSP_OLED_WriteCmd(0x40);
+  BSP_SSD1315_WriteCmd(0xDB); // 13. VCOMH 电压
+  BSP_SSD1315_WriteCmd(0x40);
 
-  BSP_OLED_WriteCmd(0xA4); // 14. 恢复 GDDRAM 显示
-  BSP_OLED_WriteCmd(0xA6); // 15. 正常显示 (非反色)
+  BSP_SSD1315_WriteCmd(0xA4); // 14. 恢复 GDDRAM 显示
+  BSP_SSD1315_WriteCmd(0xA6); // 15. 正常显示 (非反色)
 
-  SSD1315_Clear(); // 16. 清显存 + 刷屏
+  BSP_SSD1315_Clear(); // 16. 清显存 + 刷屏
 
-  BSP_OLED_WriteCmd(0xAF); // 17. 开显示
+  BSP_SSD1315_WriteCmd(0xAF); // 17. 开显示
 }
 
-void SSD1315_ColorTurn(uint8_t i) {
+void BSP_SSD1315_ColorTurn(uint8_t i) {
   // 设置 OLED 颜色翻转
-  BSP_OLED_WriteCmd(0xA6 | (i & 0x01)); // A6: 正常显示, A7: 反相显示
+  BSP_SSD1315_WriteCmd(0xA6 | (i & 0x01)); // A6: 正常显示, A7: 反相显示
 }
 
-void SSD1315_DisplayTurn(uint8_t orientation) {
+void BSP_SSD1315_DisplayTurn(uint8_t orientation) {
 
-  BSP_OLED_WriteCmd(0xC0 | ((orientation & 0x01) << 3)); // 设置扫描方向
-  BSP_OLED_WriteCmd(0xA0 | (orientation & 0x02));        // 设置列地址映射
+  BSP_SSD1315_WriteCmd(0xC0 | ((orientation & 0x01) << 3)); // 设置扫描方向
+  BSP_SSD1315_WriteCmd(0xA0 | (orientation & 0x02));        // 设置列地址映射
 }
 
-void SSD1315_ClearPoint(uint8_t x, uint8_t y) {
-  SSD1315_SetPixel(x, y, 0); // 擦除像素点
+void BSP_SSD1315_ClearPoint(uint8_t x, uint8_t y) {
+  BSP_SSD1315_SetPixel(x, y, 0); // 擦除像素点
 }
 
-void SSD1315_Clear(void) {
+void BSP_SSD1315_Clear(void) {
   // 清空显存数组
   for (uint8_t page = 0; page < 8; page++) {
     for (uint8_t col = 0; col < 128; col++) {
-      SSD1315_GRAM[page][col] = 0x00;
+      BSP_SSD1315_GRAM[page][col] = 0x00;
     }
   }
   dirty_pages = 0xFF; // 全部页脏, 确保 Refresh 将全黑数据发送到 OLED
-  SSD1315_Refresh();  // 刷新显示
+  BSP_SSD1315_Refresh();  // 刷新显示
 }
 
-void SSD1315_DisplayOn(void) {
-  BSP_OLED_WriteCmd(0xAF); // 开显示
+void BSP_SSD1315_DisplayOn(void) {
+  BSP_SSD1315_WriteCmd(0xAF); // 开显示
 }
 
-void SSD1315_DisplayOff(void) {
-  BSP_OLED_WriteCmd(0xAE); // 关显示
+void BSP_SSD1315_DisplayOff(void) {
+  BSP_SSD1315_WriteCmd(0xAE); // 关显示
 }
 
-void SSD1315_DrawPoint(uint8_t x, uint8_t y) {
-  SSD1315_SetPixel(x, y, 1); // 点亮像素点
+void BSP_SSD1315_DrawPoint(uint8_t x, uint8_t y) {
+  BSP_SSD1315_SetPixel(x, y, 1); // 点亮像素点
 }
 
-void SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
+void BSP_SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
   // 使用 Bresenham 算法绘制直线
   int dx = abs(x2 - x1);
   int dy = -abs(y2 - y1);
@@ -166,7 +190,7 @@ void SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
   int sy = (y1 < y2) ? 1 : -1;
   int err = dx + dy;
   while (1) {
-    SSD1315_SetPixel(x1, y1, 1);
+    BSP_SSD1315_SetPixel(x1, y1, 1);
     if (x1 == x2 && y1 == y2)
       break;
     int e2 = 2 * err;
@@ -181,20 +205,20 @@ void SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
   }
 }
 
-void SSD1315_DrawCircle(uint8_t x, uint8_t y, uint8_t r)
+void BSP_SSD1315_DrawCircle(uint8_t x, uint8_t y, uint8_t r)
 {
   int a, b, num;
   a = 0;
   b = r;
   while (2 * b * b >= r * r) {
-    SSD1315_SetPixel(x + a, y - b, 1);
-    SSD1315_SetPixel(x - a, y - b, 1);
-    SSD1315_SetPixel(x - a, y + b, 1);
-    SSD1315_SetPixel(x + a, y + b, 1);
-    SSD1315_SetPixel(x + b, y + a, 1);
-    SSD1315_SetPixel(x + b, y - a, 1);
-    SSD1315_SetPixel(x - b, y - a, 1);
-    SSD1315_SetPixel(x - b, y + a, 1);
+    BSP_SSD1315_SetPixel(x + a, y - b, 1);
+    BSP_SSD1315_SetPixel(x - a, y - b, 1);
+    BSP_SSD1315_SetPixel(x - a, y + b, 1);
+    BSP_SSD1315_SetPixel(x + a, y + b, 1);
+    BSP_SSD1315_SetPixel(x + b, y + a, 1);
+    BSP_SSD1315_SetPixel(x + b, y - a, 1);
+    BSP_SSD1315_SetPixel(x - b, y - a, 1);
+    BSP_SSD1315_SetPixel(x - b, y + a, 1);
     a++;
     num = (a * a + b * b) - r * r; // 计算当前点到圆心的距离与半径的差值
     if (num > 0) {
@@ -205,35 +229,35 @@ void SSD1315_DrawCircle(uint8_t x, uint8_t y, uint8_t r)
   }
 }
 
-void SSD1315_SetPixel(uint8_t x, uint8_t y, uint8_t color) {
+void BSP_SSD1315_SetPixel(uint8_t x, uint8_t y, uint8_t color) {
   uint8_t page = y / 8;
   uint8_t bit = y % 8;
   if (color) {
-    SSD1315_GRAM[page][x] |= (1 << bit);
+    BSP_SSD1315_GRAM[page][x] |= (1 << bit);
   } else {
-    SSD1315_GRAM[page][x] &= ~(1 << bit);
+    BSP_SSD1315_GRAM[page][x] &= ~(1 << bit);
   }
   dirty_pages |= (1 << page);
 }
 
-void SSD1315_Refresh(void) {
+void BSP_SSD1315_Refresh(void) {
   for (uint8_t p = 0; p < 8; p++) {
     // 只刷新脏页
     if (dirty_pages & (1 << p)) {
-      BSP_OLED_WriteCmd(0x21);
-      BSP_OLED_WriteCmd(0x00);
-      BSP_OLED_WriteCmd(0x7F);
-      BSP_OLED_WriteCmd(0x22);
-      BSP_OLED_WriteCmd(p);
-      BSP_OLED_WriteCmd(p);
-      BSP_OLED_WriteData(SSD1315_GRAM[p], 128);
+      BSP_SSD1315_WriteCmd(0x21);
+      BSP_SSD1315_WriteCmd(0x00);
+      BSP_SSD1315_WriteCmd(0x7F);
+      BSP_SSD1315_WriteCmd(0x22);
+      BSP_SSD1315_WriteCmd(p);
+      BSP_SSD1315_WriteCmd(p);
+      BSP_SSD1315_WriteData(BSP_SSD1315_GRAM[p], 128);
     }
   }
   dirty_pages = 0; // 清零，下一次重新标记
 }
 
 
-void SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size) {
+void BSP_SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size) {
   // size 当前未使用, 固定 8x16 字库。预留参数以兼容 API。
   (void)size;
 
@@ -250,25 +274,25 @@ void SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size) {
 
   // 上半页 (rows 0~7): bitmap[0..7] → GRAM[page][x..x+7]
   for (uint8_t col = 0; col < 8; col++) {
-    SSD1315_GRAM[page][x + col] = bitmap[col];
+    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
   }
   dirty_pages |= (1 << page);
 
   // 下半页 (rows 8~15): bitmap[8..15] → GRAM[page+1][x..x+7]
   for (uint8_t col = 0; col < 8; col++) {
-    SSD1315_GRAM[page + 1][x + col] = bitmap[8 + col];
+    BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[8 + col];
   }
   dirty_pages |= (1 << (page + 1));
 }
 
-void SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size) {
+void BSP_SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size) {
   while (*str) {
-    SSD1315_ShowChar(x, y, *str++, size);
+    BSP_SSD1315_ShowChar(x, y, *str++, size);
     x += FONT_EN_CHAR_W; // 每个字符占 8 像素宽
   }
 }
 
-void SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size) {
+void BSP_SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size) {
   // 整数转字符串 (不使用 snprintf, 节省 ROM)
   char buf[12];
   uint8_t i = sizeof(buf) - 1;
@@ -284,10 +308,10 @@ void SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t si
     buf[--i] = '0';
   }
 
-  SSD1315_ShowString(x, y, &buf[i], size);
+  BSP_SSD1315_ShowString(x, y, &buf[i], size);
 }
 
-void SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type)
+void BSP_SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type)
 {
   uint8_t page = y / 8;
   uint8_t idx;
@@ -306,14 +330,13 @@ void SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type
 
   /* Upper half (page)[x..x+15] */
   for (uint8_t col = 0; col < 16; col++) {
-    SSD1315_GRAM[page][x + col] = bitmap[col];
+    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
   }
   dirty_pages |= (1 << page);
 
   /* Lower half (page+1)[x..x+15] */
   for (uint8_t col = 0; col < 16; col++) {
-    SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
+    BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
   }
   dirty_pages |= (1 << (page + 1));
 }
-

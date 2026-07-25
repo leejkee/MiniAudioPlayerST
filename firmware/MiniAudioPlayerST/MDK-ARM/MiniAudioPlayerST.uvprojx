@@ -1056,9 +1056,9 @@
               <FilePath>..\BSP\src\bsp_i2c_scanner.c</FilePath>
             </File>
             <File>
-              <FileName>bsp_oled.c</FileName>
+              <FileName>bsp_ssd1315.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\src\bsp_oled.c</FilePath>
+              <FilePath>..\BSP\src\bsp_ssd1315.c</FilePath>
             </File>
             <File>
               <FileName>bsp_uart.c</FileName>
@@ -1089,11 +1089,6 @@
               <FileName>iic_scan_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\test\src\iic_scan_test.c</FilePath>
-            </File>
-            <File>
-              <FileName>ssd1315.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\App\src\ssd1315.c</FilePath>
             </File>
             <File>
               <FileName>ssd1315_test.c</FileName>

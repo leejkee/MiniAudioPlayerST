@@ -1,5 +1,5 @@
-#ifndef __SSD1315_FONT_H__
-#define __SSD1315_FONT_H__
+#ifndef __BSP_SSD1315_FONT_H__
+#define __BSP_SSD1315_FONT_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -7,11 +7,11 @@ extern "C" {
 
 #include "main.h"
 
-void SSD1315_Font_Test_RunAll(void);
+void BSP_SSD1315_Font_Test_RunAll(void);
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __SSD1315_FONT_H__
+#endif // __BSP_SSD1315_FONT_H__
