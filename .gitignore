@@ -4,7 +4,9 @@
 .vscode/
 opencode.json
 compile_commands.json
+.agents/
 AGENTS.md
+/tmp/
 
 # Keil MDK
 *.uvguix.*

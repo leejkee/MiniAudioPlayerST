@@ -7,13 +7,13 @@ extern "C" {
 
 #include <stdint.h>
 
-/* 16x16 Chinese font for SD card filenames — 85 glyphs
+/* 16x16 Unicode font for SD card filenames — 89 glyphs
  * Format: column-major, 2 pages x 16 cols = 32 bytes/glyph
- * Total: 2720 bytes
+ * Total: 2848 bytes
  */
 #define FONT_FILE_CN_CHAR_W    16
 #define FONT_FILE_CN_CHAR_H    16
-#define FONT_FILE_CN_COUNT     85
+#define FONT_FILE_CN_COUNT     89
 
 extern const uint8_t font_file_cn_16x16[FONT_FILE_CN_COUNT][32];
 

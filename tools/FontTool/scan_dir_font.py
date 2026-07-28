@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 r"""
-Scan a Windows directory for filenames, extract unique CJK characters,
-and generate SSD1315-compatible 16x16 Chinese font C arrays.
+Scan directories for filenames, extract every unique non-ASCII Unicode
+character, and generate SSD1315-compatible 16x16 font C arrays.
 
 Usage:
-    python tools/scan_dir_font.py E:\music                    # scan directory
-    python tools/scan_dir_font.py E:\music --preview           # + preview
-    python tools/scan_dir_font.py E:\music E:\more_music       # multiple dirs
-    python tools/scan_dir_font.py --chars "阴天快乐"            # explicit list
+    python tools/FontTool/scan_dir_font.py E:\music
+    python tools/FontTool/scan_dir_font.py E:\music --preview
+    python tools/FontTool/scan_dir_font.py E:\music E:\more_music
+    python tools/FontTool/scan_dir_font.py --chars "阴天快乐°"
 
 Output:
-    App/include/font_file_cn.h  — header + lookup function
-    App/src/font_file_cn.c      — font_file_cn_16x16[N][32] + lookup table
+    App/include/font_file_cn_test.h  — candidate header + lookup function
+    App/src/font_file_cn_test.c      — candidate font bitmap + lookup table
+
+Use --output-basename font_file_cn after validating the candidate output.
 
 This is separate from font_cn (UI labels) — intended for SD card filenames.
 At runtime, if a character is not found in font_cn, fall back to font_file_cn.
@@ -19,7 +21,6 @@ At runtime, if a character is not found in font_cn, fall back to font_file_cn.
 
 import argparse
 import os
-import re
 import sys
 
 try:
@@ -38,12 +39,10 @@ CHAR_H = 16
 PAGES = CHAR_H // 8
 BYTES_PER_GLYPH = PAGES * CHAR_W
 
-CJK_RE = re.compile(r'[一-鿿㐀-䶿豈-﫿]')
-
 # ---- Core rendering (shared with generate_cn_font.py) ---------------------
 
 def render_char(char, font, scale=1):
-    """Render a CJK character at 16x16, return column-major bitmap (32 bytes)."""
+    """Render a Unicode character at 16x16, return column-major bitmap."""
     if scale > 1:
         big_w = CHAR_W * scale
         big_h = CHAR_H * scale
@@ -78,21 +77,48 @@ def render_char(char, font, scale=1):
 
 # ---- Directory scanning ---------------------------------------------------
 
-def scan_dir_cjk(dirs):
-    """Walk directories and extract unique CJK chars from all filenames."""
+def extract_non_ascii(text):
+    """Return every non-ASCII BMP character from text."""
+    chars = set()
+    unsupported = set()
+
+    for char in text:
+        codepoint = ord(char)
+        if codepoint < 0x80:
+            continue
+        if codepoint > 0xFFFF:
+            unsupported.add(char)
+            continue
+        chars.add(char)
+
+    if unsupported:
+        details = ", ".join(
+            f"U+{ord(char):X} '{char}'"
+            for char in sorted(unsupported, key=ord)
+        )
+        raise ValueError(
+            "non-BMP characters are unsupported by the firmware's "
+            f"uint16_t/WCHAR lookup: {details}"
+        )
+
+    return chars
+
+
+def scan_dir_unicode(dirs):
+    """Walk directories and extract unique non-ASCII chars from filenames."""
     chars = set()
     file_count = 0
     for d in dirs:
+        dir_file_count = 0
         if not os.path.isdir(d):
             print(f"  [skip] not a directory: {d}")
             continue
         for root, _dirs, files in os.walk(d):
             for fname in files:
                 file_count += 1
-                found = set(CJK_RE.findall(fname))
-                if found:
-                    chars.update(found)
-        print(f"  {d}: {file_count} files scanned")
+                dir_file_count += 1
+                chars.update(extract_non_ascii(fname))
+        print(f"  {d}: {dir_file_count} files scanned")
     return chars, file_count
 
 
@@ -108,7 +134,7 @@ extern "C" {{
 
 #include <stdint.h>
 
-/* 16x16 Chinese font for SD card filenames — {count} glyphs
+/* 16x16 Unicode font for SD card filenames — {count} glyphs
  * Format: column-major, 2 pages x 16 cols = 32 bytes/glyph
  * Total: {count * BYTES_PER_GLYPH} bytes
  */
@@ -129,14 +155,14 @@ uint8_t font_file_cn_lookup(uint16_t unicode);
 """
 
 
-def generate_source(glyphs):
+def generate_source(glyphs, header_filename):
     """Generate font_file_cn.c with bitmap data and sorted lookup table."""
     n = len(glyphs)
 
     lines = []
-    lines.append('#include "font_file_cn.h"')
+    lines.append(f'#include "{header_filename}"')
     lines.append("")
-    lines.append(f"/* 16x16 Chinese font for SD card filenames — {n} glyphs */")
+    lines.append(f"/* 16x16 Unicode font for SD card filenames — {n} glyphs */")
     lines.append("")
 
     # Bitmap array
@@ -166,9 +192,10 @@ def generate_source(glyphs):
     # Binary search
     lines.append("""uint8_t font_file_cn_lookup(uint16_t unicode)
 {
-    uint8_t lo = 0, hi = CN_LUT_SIZE - 1;
+    int16_t lo = 0;
+    int16_t hi = (int16_t)CN_LUT_SIZE - 1;
     while (lo <= hi) {
-        uint8_t mid = (lo + hi) / 2;
+        int16_t mid = (lo + hi) / 2;
         if (cn_lut[mid].code == unicode) return cn_lut[mid].idx;
         if (cn_lut[mid].code < unicode) lo = mid + 1;
         else                           hi = mid - 1;
@@ -183,7 +210,10 @@ def generate_source(glyphs):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Scan directory filenames → Chinese font C arrays for SSD1315"
+        description=(
+            "Scan directory filenames → non-ASCII Unicode font C arrays "
+            "for SSD1315"
+        )
     )
     parser.add_argument(
         "dirs", nargs="*", default=None,
@@ -202,13 +232,27 @@ def main():
         help="Output dir (default: ../firmware/MiniAudioPlayerST/App)"
     )
     parser.add_argument(
+        "--output-basename", default="font_file_cn_test",
+        help=(
+            "Output filename without extension "
+            "(default: font_file_cn_test; use font_file_cn to overwrite formal files)"
+        )
+    )
+    parser.add_argument(
         "--preview", action="store_true",
         help="Write preview.txt"
     )
     args = parser.parse_args()
 
+    if (
+        not args.output_basename
+        or os.path.basename(args.output_basename) != args.output_basename
+        or args.output_basename in {".", ".."}
+    ):
+        parser.error("--output-basename must be a filename without a directory")
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.join(script_dir, "..")
+    repo_root = os.path.normpath(os.path.join(script_dir, "..", ".."))
 
     out_dir = args.out_dir or os.path.join(
         repo_root, "firmware", "MiniAudioPlayerST", "App"
@@ -218,24 +262,28 @@ def main():
     # ---- Collect characters from filenames ----
     chars = set()
 
-    if args.chars:
-        chars.update(CJK_RE.findall(args.chars))
+    try:
+        if args.chars:
+            chars.update(extract_non_ascii(args.chars))
 
-    if args.dirs:
-        found, file_count = scan_dir_cjk(args.dirs)
-        chars.update(found)
-    elif not args.chars:
-        print("ERROR: specify at least one directory or use --chars")
+        if args.dirs:
+            found, file_count = scan_dir_unicode(args.dirs)
+            chars.update(found)
+        elif not args.chars:
+            print("ERROR: specify at least one directory or use --chars")
+            sys.exit(1)
+    except ValueError as error:
+        print(f"ERROR: {error}")
         sys.exit(1)
 
     if not chars:
-        print("ERROR: no CJK characters found in filenames")
+        print("ERROR: no non-ASCII characters found in filenames")
         sys.exit(1)
 
     sorted_chars = sorted(chars, key=ord)
     n = len(sorted_chars)
 
-    print(f"\nCJK chars from filenames: {n}")
+    print(f"\nNon-ASCII Unicode chars from filenames: {n}")
     print(f"Flash usage: {n * BYTES_PER_GLYPH} bytes (bitmap) + {n * 3} bytes (LUT)")
     print(f"Chars: {''.join(sorted_chars)}")
     print()
@@ -259,14 +307,17 @@ def main():
     os.makedirs(include_dir, exist_ok=True)
     os.makedirs(src_dir, exist_ok=True)
 
-    h_path = os.path.join(include_dir, "font_file_cn.h")
+    h_filename = f"{args.output_basename}.h"
+    c_filename = f"{args.output_basename}.c"
+
+    h_path = os.path.join(include_dir, h_filename)
     with open(h_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(generate_header(n))
     print(f"\n[OK] {h_path}")
 
-    c_path = os.path.join(src_dir, "font_file_cn.c")
+    c_path = os.path.join(src_dir, c_filename)
     with open(c_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(generate_source(glyphs))
+        f.write(generate_source(glyphs, h_filename))
     print(f"[OK] {c_path}")
 
     if args.preview:
