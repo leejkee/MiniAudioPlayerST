@@ -21,8 +21,8 @@ typedef struct {
 static const bsp_key_pin_t key_pins[KEY_COUNT] = {
     [KEY_MENU] = { GPIOA, GPIO_PIN_9  },
     [KEY_OK]   = { GPIOA, GPIO_PIN_10 },
-    [KEY_L]    = { GPIOA, GPIO_PIN_11 },
-    [KEY_R]    = { GPIOA, GPIO_PIN_12 },
+    [KEY_L]    = { GPIOB, GPIO_PIN_0  },
+    [KEY_R]    = { GPIOB, GPIO_PIN_1  },
 };
 
 /* 消抖上下文 ----------------------------------------------------------------*/
