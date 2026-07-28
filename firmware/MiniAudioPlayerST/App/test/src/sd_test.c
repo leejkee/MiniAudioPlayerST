@@ -12,7 +12,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "sd_test.h"
-#include "SD_Card.h"
+#include "sd_card.h"
 #include "bsp_config.h"
 
 /* 测试入口 ------------------------------------------------------------------*/
@@ -42,14 +42,14 @@ void SD_Test_Run(void)
     /* ---- 步骤 2: 列出根目录 ---- */
     BSP_DEBUG_PRINTF("[TEST 2] Listing root directory:\r\n");
     BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
-    SD_ListDir("/");
+    SD_Debug_ListDir("/");
     BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
     BSP_DEBUG_PRINTF("\r\n");
 
-    /* ---- 步骤 3: 列出音乐目录 ---- */
-    BSP_DEBUG_PRINTF("[TEST 3] Listing music directory:\r\n");
+    /* ---- 步骤 3: 列出 /music 目录 ---- */
+    BSP_DEBUG_PRINTF("[TEST 3] Listing /music directory:\r\n");
     BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
-    SD_ListDir("/music");
+    SD_Debug_ListDir("/music");
     BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
     BSP_DEBUG_PRINTF("\r\n");
 

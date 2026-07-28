@@ -9,8 +9,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "SD_Card.h"
-#include "fatfs.h"
+#include "sd_card.h"
 #include "bsp_config.h"
 #include <string.h>
 
@@ -22,14 +21,38 @@
 static SD_Status_t SD_MapFRESULT(FRESULT fr)
 {
     switch (fr) {
-        case FR_OK:            return SD_OK;
+        case FR_OK:
+            return SD_OK;
         case FR_DISK_ERR:
-        case FR_NOT_READY:     return SD_ERR_MOUNT;
+        case FR_NOT_READY:
+            return SD_ERR_MOUNT;
         case FR_NO_FILE:
-        case FR_NO_PATH:       return SD_ERR_OPEN;
-        case FR_NO_FILESYSTEM: return SD_ERR_NO_FILESYSTEM;
-        default:               return SD_ERR_READ;
+        case FR_NO_PATH:
+            return SD_ERR_OPEN;
+        case FR_NO_FILESYSTEM:
+            return SD_ERR_NO_FILESYSTEM;
+        default:
+            return SD_ERR_READ;
     }
+}
+
+uint8_t SD_CountFiles(const WCHAR *path)
+{
+    DIR      dir;
+    FILINFO  fno   = {0};
+    uint32_t count = 0;
+
+    if (f_opendir(&dir, path) != FR_OK) {
+        return 0;
+    }
+
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0) {
+        if (!(fno.fattrib & AM_DIR)) {
+            count++;
+        }
+    }
+    f_closedir(&dir);
+    return count;
 }
 
 #if _LFN_UNICODE
@@ -46,12 +69,23 @@ static void path_to_tchar(const char *src, TCHAR *dst, uint16_t max_len)
     dst[i] = 0;
 }
 
+static void wchar_ncpy(WCHAR *dst, const WCHAR *src, int max_chars)
+{
+    int i;
+    for (i = 0; i < max_chars - 1 && src[i] != 0; i++) {
+        dst[i] = src[i];
+    }
+    dst[i] = 0;
+}
+
 /*
  * UTF-16LE → UTF-8 转换 (BMP only, 覆盖所有 CJK)
  */
 static void utf16_to_utf8(const WCHAR *src, char *dst, uint16_t dst_size)
 {
-    if (!src || !dst || dst_size == 0) return;
+    if (!src || !dst || dst_size == 0){
+        return;
+    }
 
     while (*src && dst_size > 4) {
         uint16_t ch = *src++;
@@ -103,61 +137,44 @@ void SD_Unmount(void)
     BSP_DEBUG_PRINTF("[SD] Unmounted\r\n");
 }
 
-/**
-  * @brief  读取文件内容
-  */
-SD_Status_t SD_ReadFile(const char *filename, uint8_t *buffer, uint32_t *len)
+SD_Status_t SD_ReadFile(const WCHAR *path, WCHAR *buffer, uint32_t *len)
 {
     FRESULT fr;
     FIL     file;
     UINT    bytes_read;
-#if _LFN_UNICODE
-    TCHAR   tpath[_MAX_LFN + 1];
-#else
-    const TCHAR *tpath;
-#endif
 
-    if (filename == NULL || buffer == NULL || len == NULL) {
+    if (path == NULL || buffer == NULL || len == NULL) {
         return SD_ERR_PARAM;
     }
 
-#if _LFN_UNICODE
-    path_to_tchar(filename, tpath, sizeof(tpath) / sizeof(tpath[0]));
-#else
-    tpath = filename;
-#endif
-
-    fr = f_open(&file, tpath, FA_READ | FA_OPEN_EXISTING);
+    fr = f_open(&file, path, FA_READ | FA_OPEN_EXISTING);
     if (fr != FR_OK) {
-        BSP_DEBUG_PRINTF("[SD] f_open(%s) failed: %d\r\n", filename, fr);
         return SD_MapFRESULT(fr);
     }
 
-    fr = f_read(&file, buffer, *len, &bytes_read);
+    fr   = f_read(&file, buffer, *len, &bytes_read);
     *len = bytes_read;
 
     f_close(&file);
 
     if (fr != FR_OK) {
-        BSP_DEBUG_PRINTF("[SD] f_read failed: %d\r\n", fr);
         return SD_MapFRESULT(fr);
     }
-
     return SD_OK;
 }
 
 /**
-  * @brief  列出目录内容, 通过 BSP_DEBUG_PRINTF 输出到串口
+  * @brief  DEBUG FUNCTION 列出目录内容, 通过 BSP_DEBUG_PRINTF 输出到串口
   */
-SD_Status_t SD_ListDir(const char *path)
+SD_Status_t SD_Debug_ListDir(const char *path)
 {
     FRESULT fr;
     DIR     dir;
-    FILINFO fno;
+    FILINFO fno = {0};
 #if _LFN_UNICODE
-    TCHAR   tpath[_MAX_LFN + 1];          /* 栈: 512B */
-    static WCHAR lfn_buf[_MAX_LFN + 1];   /* 静态: 512B, 不占栈 */
-    static char  utf8_buf[_MAX_LFN + 1];  /* 静态: 256B, 不占栈 */
+    TCHAR        tpath[_MAX_LFN + 1];    /* 栈: 512B */
+    static WCHAR lfn_buf[_MAX_LFN + 1];  /* 静态: 512B, 不占栈 */
+    static char  utf8_buf[_MAX_LFN + 1]; /* 静态: 256B, 不占栈 */
 #else
     const TCHAR *tpath;
     static char  lfn_buf[_MAX_LFN + 1];
@@ -177,7 +194,7 @@ SD_Status_t SD_ListDir(const char *path)
     BSP_DEBUG_PRINTF("[SD] Listing directory: %s\r\n", path);
 
     fno.lfname = lfn_buf;
-    fno.lfsize = sizeof(lfn_buf);
+    fno.lfsize = sizeof(lfn_buf) / sizeof(lfn_buf[0]);
 
     fr = f_opendir(&dir, tpath);
     if (fr != FR_OK) {
@@ -198,8 +215,8 @@ SD_Status_t SD_ListDir(const char *path)
         count++;
 
 #if _LFN_UNICODE
-        const WCHAR *lfname  = fno.lfname;
-        const WCHAR *sfname  = fno.fname;
+        const WCHAR *lfname = fno.lfname;
+        const WCHAR *sfname = fno.fname;
         const char  *display;
 
         if (lfname && lfname[0]) {
@@ -210,8 +227,7 @@ SD_Status_t SD_ListDir(const char *path)
             display = utf8_buf;
         }
 #else
-        const char *display = (fno.lfname && fno.lfname[0])
-                            ? fno.lfname : fno.fname;
+        const char *display = (fno.lfname && fno.lfname[0]) ? fno.lfname : fno.fname;
 #endif
 
         if (fno.fattrib & AM_DIR) {
@@ -224,4 +240,54 @@ SD_Status_t SD_ListDir(const char *path)
     f_closedir(&dir);
     BSP_DEBUG_PRINTF("[SD] Total: %lu entries\r\n", count);
     return SD_OK;
+}
+
+uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_chars_per_entry,
+                             uint32_t start_index, const WCHAR *path)
+{
+    if (list == NULL || path == NULL) {
+        return 0;
+    }
+
+    FRESULT      fr;
+    DIR          dir;
+    FILINFO      fno = {0};
+    static WCHAR lfn_buf[_MAX_LFN + 1]; /* 静态: 512B, 不占栈 */
+    uint8_t      count   = 0;
+    uint8_t      skipped = 0;
+
+    fno.lfname = lfn_buf;
+    fno.lfsize = sizeof(lfn_buf) / sizeof(lfn_buf[0]);
+
+    fr = f_opendir(&dir, path);
+    if (fr != FR_OK) {
+        return 0;
+    }
+
+    while (1) {
+        fr = f_readdir(&dir, &fno);
+        if (fr != FR_OK || fno.fname[0] == 0) {
+            break;
+        }
+
+        if (fno.fname[0] == '.') {
+            continue;
+        }
+
+        if (skipped < start_index) {
+            skipped++;
+            continue;
+        }
+
+        if (count >= max_entries) {
+            break;
+        }
+
+        const WCHAR *src = (fno.lfname[0]) ? fno.lfname : fno.fname;
+        wchar_ncpy(list[count], src, max_chars_per_entry);
+        count++;
+    }
+
+    f_closedir(&dir);
+    return count;
 }

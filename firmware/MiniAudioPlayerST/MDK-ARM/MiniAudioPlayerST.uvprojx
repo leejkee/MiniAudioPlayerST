@@ -1135,6 +1135,21 @@
               <FileType>1</FileType>
               <FilePath>..\App\src\ui_render.c</FilePath>
             </File>
+            <File>
+              <FileName>file_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\file_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_file_page.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\ui_file_page.c</FilePath>
+            </File>
+            <File>
+              <FileName>sd_oled_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test\src\sd_oled_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

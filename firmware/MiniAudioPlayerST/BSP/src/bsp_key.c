@@ -120,7 +120,9 @@ key_edge_type_t BSP_Key_GetEvent(bsp_key_id_t id)
     uint8_t bit_mask = (1 << id);
 
     if (key_ctx.edge_flags & bit_mask) {
+        __HAL_TIM_DISABLE_IT(&htim1, TIM_IT_UPDATE);
         key_ctx.edge_flags &= ~bit_mask;  /* 消费事件, 清零标记 */
+        __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
         return KEY_EDGE_RELEASE;
     }
 
