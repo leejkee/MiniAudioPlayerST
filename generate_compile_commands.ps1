@@ -87,10 +87,14 @@ $firmwareBaseArgs = @(
 )
 foreach ($d in $defineList) { $firmwareBaseArgs += "-D$d" }
 foreach ($inc in $includeList) { $firmwareBaseArgs += "-I$inc" }
-# 补充业务层 include 路径 (App/BSP), MDK-ARM 目录下的相对路径为 ../App/include、../App/test/include 和 ../BSP/include
+# 补充业务层 include 路径 (App/BSP/FATFS), MDK-ARM 目录下的相对路径
 $firmwareBaseArgs += "-I../App/include"
 $firmwareBaseArgs += "-I../App/test/include"
 $firmwareBaseArgs += "-I../BSP/include"
+$firmwareBaseArgs += "-I../FATFS/App"
+$firmwareBaseArgs += "-I../FATFS/Target"
+$firmwareBaseArgs += "-I../Middlewares/Third_Party/FatFs/src"
+$firmwareBaseArgs += "-I../Middlewares/Third_Party/FatFs/src/option"
 
 # ---- 构建固件工程根目录基准编译参数 (BSP/App 业务层使用) ----
 # Unix 斜杠版本
@@ -103,6 +107,10 @@ $businessIncludes = @(
     "App/include",
     "App/test/include",
     "BSP/include",
+    "FATFS/App",
+    "FATFS/Target",
+    "Middlewares/Third_Party/FatFs/src",
+    "Middlewares/Third_Party/FatFs/src/option",
     "Core/Inc",
     "Drivers/STM32F0xx_HAL_Driver/Inc",
     "Drivers/STM32F0xx_HAL_Driver/Inc/Legacy",
@@ -168,6 +176,42 @@ $appDir = Join-Path $FirmwareRoot "App"
 if (Test-Path $appDir) {
     $appFiles = Get-ChildItem -Path $appDir -Recurse -Filter "*.c" -File
     foreach ($f in $appFiles) {
+        $businessSources += @{
+            FullPath = $f.FullName
+            Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
+        }
+    }
+}
+
+# FATFS/App/*.c
+$fatfsAppDir = Join-Path $FirmwareRoot "FATFS\App"
+if (Test-Path $fatfsAppDir) {
+    $fatfsFiles = Get-ChildItem -Path $fatfsAppDir -Filter "*.c" -File
+    foreach ($f in $fatfsFiles) {
+        $businessSources += @{
+            FullPath = $f.FullName
+            Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
+        }
+    }
+}
+
+# FATFS/Target/*.c
+$fatfsTargetDir = Join-Path $FirmwareRoot "FATFS\Target"
+if (Test-Path $fatfsTargetDir) {
+    $fatfsTargetFiles = Get-ChildItem -Path $fatfsTargetDir -Filter "*.c" -File
+    foreach ($f in $fatfsTargetFiles) {
+        $businessSources += @{
+            FullPath = $f.FullName
+            Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
+        }
+    }
+}
+
+# Middlewares/Third_Party/FatFs/src/ 递归扫描 *.c (覆盖 option/ 子目录)
+$fatfsSrcDir = Join-Path $FirmwareRoot "Middlewares\Third_Party\FatFs\src"
+if (Test-Path $fatfsSrcDir) {
+    $fatfsSrcFiles = Get-ChildItem -Path $fatfsSrcDir -Recurse -Filter "*.c" -File
+    foreach ($f in $fatfsSrcFiles) {
         $businessSources += @{
             FullPath = $f.FullName
             Relative  = $f.FullName.Replace($FirmwareRoot + '\', '') -replace '\\', '/'
