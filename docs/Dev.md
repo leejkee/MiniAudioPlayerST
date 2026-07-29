@@ -73,7 +73,7 @@ graph TB
     %% BSP 驱动层
     %% ═══════════════════════════════════════════════════════════
     subgraph BSP[" BSP 驱动层 Board Support Package "]
-        BSP_SPI["bsp_spi.c<br/>──────────────<br/>SPI 硬件抽象接口<br/>BSP_SPI_TransmitReceive8()<br/>BSP_SPI_TransmitReceive()<br/>BSP_SPI_Transmit()<br/>BSP_SPI_Receive()<br/>BSP_SPI_SetSpeed()"]
+        BSP_SPI["bsp_spi.c<br/>──────────────<br/>通用 SPI 总线抽象<br/>bsp_spi_context_t<br/>BSP_SPI_RW()<br/>BSP_SPI_Tx()<br/>BSP_SPI_Rx()<br/>BSP_SPI_SetPrescaler()"]
         BSP_SD["bsp_SD.c<br/>──────────────<br/>SD 卡协议驱动<br/>BSP_SD_CardInit()　　CMD0/CMD8/ACMD41<br/>BSP_SD_ReadBlocks()　 CMD17 单块读<br/>BSP_SD_WriteBlocks()　CMD24 单块写<br/>BSP_SD_GetInfo()<br/>BSP_SD_GetState()"]
     end
 
@@ -146,7 +146,7 @@ graph TB
 >
 > | 模块 | 文件 | 职责 |
 > |------|------|------|
-> | SPI 硬件抽象 | `bsp_spi.c/h` | 封装 HAL SPI 操作，提供 `TransmitReceive8/TransmitReceive/Transmit/Receive/SetSpeed` 五个原语。不管理 CS 引脚，不关心上层协议。 |
+> | SPI 硬件抽象 | `bsp_spi.c/h` | 通过调用方传入的 `bsp_spi_context_t` 封装 HAL SPI 操作，提供 `RW/Tx/Rx/SetPrescaler` 原语。不管理 CS 引脚，不关心上层协议。 |
 > | SD 卡协议驱动 | `bsp_SD.c/h` | 管理 CS 引脚，实现 SD 卡 SPI 模式协议：上电低速初始化 (CMD0/CMD8/ACMD41/CMD58)、扇区读写 (CMD17/CMD24)、卡状态与信息查询。向上提供 `ReadBlocks/WriteBlocks` 扇区级接口。 |
 > | FatFS 适配层 | `user_diskio.c` | 将 FatFS 的 `disk_read/disk_write/disk_ioctl` 等标准接口映射到 `BSP_SD_ReadBlocks/BSP_SD_WriteBlocks`。处理扇区地址转换、返回值适配。 |
 > | FatFS 文件系统 | `ff.c` | 实现 FAT32 文件系统逻辑：目录遍历、文件打开/关闭、流式读取 (`f_read`)、文件定位 (`f_lseek`)、长文件名 (LFN UTF-16LE) 支持。 |
@@ -190,7 +190,8 @@ graph TB
 > ```c
 > /* 发送 CMD17 后释放总线 */
 > BSP_SD_ChipSelect(1);               // CS = HIGH，撤销片选
-> BSP_SPI_TransmitReceive8(&hspi1, 0xFF); // 发 dummy 字节，产生 8 个 SCK
+> uint8_t rx;
+> BSP_SPI_RW(&sd_spi, 0xFF, &rx, HAL_MAX_DELAY); // 发 dummy 字节，产生 8 个 SCK
 >                                         // 让 SD 卡完成总线释放，进入空闲
 > ```
 >

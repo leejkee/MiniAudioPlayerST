@@ -1,74 +1,76 @@
 /**
   ******************************************************************************
   * @file    bsp_spi.c
-  * @brief   BSP SPI 模块实现 — 平台相关代码唯一集中点
-  * @note    本文件使用 STM32 HAL + hspi1 + PA4。
-  *          移植到 GD32 等平台只需重写本文件, 接口 (bsp_spi.h) 不变。
+  * @brief   BSP SPI 通用抽象层实现
   ******************************************************************************
   */
 
 #include "bsp_spi.h"
-#include "spi.h"   /* hspi1 */
 
-/* ========================================================================= */
-/*                           SPI 收发                                         */
-/* ========================================================================= */
-
-uint8_t BSP_SPI_RW(uint8_t tx_data)
+static uint8_t BSP_SPI_IsValid(const bsp_spi_context_t *context)
 {
-    uint8_t rx_data;
-    HAL_SPI_TransmitReceive(&hspi1, &tx_data, &rx_data, 1, HAL_MAX_DELAY);
-    return rx_data;
+    return (context != NULL) && (context->hspi != NULL);
 }
 
-void BSP_SPI_Tx(const uint8_t *buf, uint16_t len)
+HAL_StatusTypeDef BSP_SPI_RW(const bsp_spi_context_t *context,
+                             uint8_t tx_data,
+                             uint8_t *rx_data,
+                             uint32_t timeout)
 {
-    HAL_SPI_Transmit(&hspi1, (uint8_t *)buf, len, HAL_MAX_DELAY);
-}
-
-void BSP_SPI_Rx(uint8_t *buf, uint16_t len)
-{
-    HAL_SPI_Receive(&hspi1, buf, len, HAL_MAX_DELAY);
-}
-
-void BSP_SPI_SetSpeed(uint8_t speed)
-{
-    uint32_t prescaler;
-
-    if (speed == BSP_SPI_SPEED_LOW) {
-        prescaler = SPI_BAUDRATEPRESCALER_128;  /* ~375kHz @ 48MHz */
-    } else {
-        prescaler = SPI_BAUDRATEPRESCALER_2;    /* ~24MHz  @ 48MHz */
+    if (!BSP_SPI_IsValid(context) || (rx_data == NULL)) {
+        return HAL_ERROR;
     }
 
-    hspi1.Init.BaudRatePrescaler = prescaler;
-    HAL_SPI_Init(&hspi1);
+    return HAL_SPI_TransmitReceive(context->hspi,
+                                   &tx_data,
+                                   rx_data,
+                                   1,
+                                   timeout);
 }
 
-/* ========================================================================= */
-/*                       平台抽象: CS 引脚控制 (PA4)                           */
-/* ========================================================================= */
-
-void BSP_SPI_CS_Low(void)
+HAL_StatusTypeDef BSP_SPI_Tx(const bsp_spi_context_t *context,
+                             const uint8_t *buf,
+                             uint16_t len,
+                             uint32_t timeout)
 {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+    if (!BSP_SPI_IsValid(context) || (buf == NULL) || (len == 0U)) {
+        return HAL_ERROR;
+    }
+
+    return HAL_SPI_Transmit(context->hspi,
+                            (uint8_t *)buf,
+                            len,
+                            timeout);
 }
 
-void BSP_SPI_CS_High(void)
+HAL_StatusTypeDef BSP_SPI_Rx(const bsp_spi_context_t *context,
+                             uint8_t *buf,
+                             uint16_t len,
+                             uint8_t dummy_data,
+                             uint32_t timeout)
 {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+    if (!BSP_SPI_IsValid(context) || (buf == NULL) || (len == 0U)) {
+        return HAL_ERROR;
+    }
+
+    /*
+     * STM32 HAL 在全双工主机模式下会将接收缓冲区同时作为发送缓冲区，
+     * 因此需要先写入调用方指定的 dummy 字节。
+     */
+    for (uint16_t i = 0U; i < len; ++i) {
+        buf[i] = dummy_data;
+    }
+
+    return HAL_SPI_Receive(context->hspi, buf, len, timeout);
 }
 
-/* ========================================================================= */
-/*                       平台抽象: 系统延时                                    */
-/* ========================================================================= */
-
-void BSP_DelayMs(uint32_t ms)
+HAL_StatusTypeDef BSP_SPI_SetPrescaler(const bsp_spi_context_t *context,
+                                       uint32_t prescaler)
 {
-    HAL_Delay(ms);
-}
+    if (!BSP_SPI_IsValid(context)) {
+        return HAL_ERROR;
+    }
 
-uint32_t BSP_GetTick(void)
-{
-    return HAL_GetTick();
+    context->hspi->Init.BaudRatePrescaler = prescaler;
+    return HAL_SPI_Init(context->hspi);
 }

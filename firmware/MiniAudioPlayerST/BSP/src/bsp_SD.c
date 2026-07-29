@@ -6,7 +6,7 @@
   *            SPI1: PA5(SCK), PA6(MISO), PA7(MOSI)
   *            CS:   PA4 (GPIO 软件控制)
   *
-  *          依赖 bsp_spi 层, 不直接调用 HAL。CS 由本模块管理。
+  *          SPI 收发依赖 bsp_spi 层，CS 和协议时序由本模块管理。
   *          CS 逻辑: Low=选中 / High=释放 (标准逻辑, 非反相)。
   *
   *          参考: docs/sd_example.md (SD 协议逻辑)
@@ -15,6 +15,7 @@
 
 #include "bsp_SD.h"
 #include "bsp_spi.h"
+#include "spi.h"
 
 /* ========================================================================= */
 /*                           SD 协议常量                                      */
@@ -70,8 +71,13 @@
 #define SD_DATA_TIMEOUT      200    /* 数据令牌超时    */
 #define SD_WRITE_TIMEOUT     500    /* 写操作忙等待    */
 
-/* 哑字节 (SPI 总线填充) */
+/* 哑字节 (SPI 总线填充) 发送该字节让MCU继续产生SCK时序 */
 #define SD_DUMMY             0xFF
+
+/* SPI 配置 */
+#define SD_SPI_TIMEOUT       HAL_MAX_DELAY
+#define SD_SPI_PRESCALER_LOW SPI_BAUDRATEPRESCALER_128
+#define SD_SPI_PRESCALER_HIGH SPI_BAUDRATEPRESCALER_2
 
 /* ========================================================================= */
 /*                            内部驱动状态                                     */
@@ -85,13 +91,59 @@ static struct {
 } sd;
 
 /*
+ * SD 硬件上下文。
+ * SPI 总线操作由 bsp_spi 完成，CS 引脚和事务时序由 SD 驱动管理。
+ */
+static const struct {
+    bsp_spi_context_t spi;
+    GPIO_TypeDef     *cs_port;
+    uint16_t          cs_pin;
+} sd_hw = {
+    .spi = {
+        .hspi = &hspi1
+    },
+    .cs_port = GPIOA,
+    .cs_pin  = GPIO_PIN_4
+};
+
+static inline void CS_Select(void)
+{
+    HAL_GPIO_WritePin(sd_hw.cs_port, sd_hw.cs_pin, GPIO_PIN_RESET);
+}
+
+static inline uint8_t SD_SPI_RW(uint8_t tx_data)
+{
+    uint8_t rx_data = SD_DUMMY;
+
+    (void)BSP_SPI_RW(&sd_hw.spi,
+                     tx_data,
+                     &rx_data,
+                     SD_SPI_TIMEOUT);
+    return rx_data;
+}
+
+static inline void SD_SPI_Tx(const uint8_t *buf, uint16_t len)
+{
+    (void)BSP_SPI_Tx(&sd_hw.spi, buf, len, SD_SPI_TIMEOUT);
+}
+
+static inline void SD_SPI_Rx(uint8_t *buf, uint16_t len)
+{
+    (void)BSP_SPI_Rx(&sd_hw.spi,
+                     buf,
+                     len,
+                     SD_DUMMY,
+                     SD_SPI_TIMEOUT);
+}
+
+/*
  * 释放 CS + 发 1 个哑字节 (8 SCK)。
  * Dev.md 规范: CS 拉高后必须产生额外时钟让 SD 卡完成总线释放。
  */
 static inline void CS_Release(void)
 {
-    BSP_SPI_CS_High();
-    BSP_SPI_RW(SD_DUMMY);
+    HAL_GPIO_WritePin(sd_hw.cs_port, sd_hw.cs_pin, GPIO_PIN_SET);
+    SD_SPI_RW(SD_DUMMY);
 }
 
 /*
@@ -100,20 +152,21 @@ static inline void CS_Release(void)
  */
 static uint8_t SD_WaitReady(uint32_t timeout_ms)
 {
-    uint32_t start = BSP_GetTick();
+    uint32_t start = HAL_GetTick();
     do {
-        if (BSP_SPI_RW(SD_DUMMY) == 0xFF) {
+        if (SD_SPI_RW(SD_DUMMY) == 0xFF) {
             return 0;
         }
-    } while ((BSP_GetTick() - start) < timeout_ms);
+    } while ((HAL_GetTick() - start) < timeout_ms);
     return 1;
 }
 
 /* 速率切换 */
 static void SD_SetSpeed(uint8_t low_speed)
 {
-    BSP_SPI_SetSpeed(
-        low_speed ? BSP_SPI_SPEED_LOW : BSP_SPI_SPEED_HIGH);
+    (void)BSP_SPI_SetPrescaler(
+        &sd_hw.spi,
+        low_speed ? SD_SPI_PRESCALER_LOW : SD_SPI_PRESCALER_HIGH);
 }
 
 /* ========================================================================= */
@@ -135,32 +188,32 @@ static uint8_t SD_SendCmd(uint8_t cmd, uint32_t arg, uint8_t crc)
     uint8_t  r1;
     uint32_t start;
 
-    BSP_SPI_CS_Low();
+    CS_Select();
 
     /* 等待卡退出忙态 */
     SD_WaitReady(SD_CMD_TIMEOUT);
 
     /* 6 字节命令帧 */
-    BSP_SPI_RW(cmd | 0x40);
-    BSP_SPI_RW((uint8_t)(arg >> 24));
-    BSP_SPI_RW((uint8_t)(arg >> 16));
-    BSP_SPI_RW((uint8_t)(arg >> 8));
-    BSP_SPI_RW((uint8_t)(arg));
-    BSP_SPI_RW(crc);
+    SD_SPI_RW(cmd | 0x40);
+    SD_SPI_RW((uint8_t)(arg >> 24));
+    SD_SPI_RW((uint8_t)(arg >> 16));
+    SD_SPI_RW((uint8_t)(arg >> 8));
+    SD_SPI_RW((uint8_t)(arg));
+    SD_SPI_RW(crc);
 
     /* CMD12: 额外哑字节 */
     if (cmd == CMD12) {
-        BSP_SPI_RW(SD_DUMMY);
+        SD_SPI_RW(SD_DUMMY);
     }
 
     /* 等待 R1 (MSB=0 表示有效) */
-    start = BSP_GetTick();
+    start = HAL_GetTick();
     do {
-        r1 = BSP_SPI_RW(SD_DUMMY);
+        r1 = SD_SPI_RW(SD_DUMMY);
         if (!(r1 & 0x80)) {
             return r1;
         }
-    } while ((BSP_GetTick() - start) < SD_CMD_TIMEOUT);
+    } while ((HAL_GetTick() - start) < SD_CMD_TIMEOUT);
 
     return r1;  /* 超时返回 0xFF */
 }
@@ -183,12 +236,12 @@ static uint8_t SD_ReceiveData(uint8_t *data, uint16_t len)
 
     /* CS 选中 (对于多块读的首块,
      * SD_SendCmd 已经保活 CS, 再次拉低无副作用) */
-    BSP_SPI_CS_Low();
+    CS_Select();
 
     /* 等待起始令牌 0xFE */
-    start = BSP_GetTick();
-    while ((BSP_GetTick() - start) < SD_DATA_TIMEOUT) {
-        if (BSP_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK) {
+    start = HAL_GetTick();
+    while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT) {
+        if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK) {
             goto token_found;
         }
     }
@@ -198,11 +251,11 @@ static uint8_t SD_ReceiveData(uint8_t *data, uint16_t len)
 
 token_found:
     /* 接收数据 */
-    BSP_SPI_Rx(data, len);
+    SD_SPI_Rx(data, len);
 
     /* 丢弃 2 字节 CRC */
-    BSP_SPI_RW(SD_DUMMY);
-    BSP_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
 
     /* 释放 CS */
     CS_Release();
@@ -228,7 +281,7 @@ static uint8_t SD_SendBlock(const uint8_t *buf, uint8_t token)
     uint8_t resp;
 
     /* 发送写令牌 */
-    BSP_SPI_RW(token);
+    SD_SPI_RW(token);
 
     /* 停止令牌: 不发数据 */
     if (token == TOKEN_STOP_TRANS) {
@@ -237,14 +290,14 @@ static uint8_t SD_SendBlock(const uint8_t *buf, uint8_t token)
     }
 
     /* 发送 512 字节数据 */
-    BSP_SPI_Tx(buf, 512);
+    SD_SPI_Tx(buf, 512);
 
     /* 2 字节假 CRC (SPI 模式通常忽略 CRC) */
-    BSP_SPI_RW(SD_DUMMY);
-    BSP_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
 
     /* 读取数据响应 */
-    resp = BSP_SPI_RW(SD_DUMMY);
+    resp = SD_SPI_RW(SD_DUMMY);
     if ((resp & 0x1F) != DATA_RESP_ACCEPTED) {
         return 1;
     }
@@ -371,7 +424,7 @@ bsp_sd_status_t BSP_SD_Init(void)
     /* ---- 80+ 时钟脉冲, 引导 SD 卡进入 SPI 模式 ---- */
     CS_Release();
     for (int i = 0; i < 10; i++) {
-        BSP_SPI_RW(SD_DUMMY);
+        SD_SPI_RW(SD_DUMMY);
     }
 
     /* ---- CMD0: 复位 (重试直到进入 IDLE 态) ---- */
@@ -384,7 +437,7 @@ bsp_sd_status_t BSP_SD_Init(void)
     r1 = SD_SendCmd(CMD8, 0x1AA, 0x87);
     if (r1 == R1_IDLE) {
         for (int i = 0; i < 4; i++) {
-            buf[i] = BSP_SPI_RW(SD_DUMMY);
+            buf[i] = SD_SPI_RW(SD_DUMMY);
         }
         CS_Release();
         if (buf[2] == 0x01 && buf[3] == 0xAA) {
@@ -397,15 +450,15 @@ bsp_sd_status_t BSP_SD_Init(void)
     /* ---- ACMD41 初始化 ---- */
     if (is_v2) {
         /* V2: 带 HCS 位 */
-        start = BSP_GetTick();
+        start = HAL_GetTick();
         do {
             SD_SendCmd(CMD55, 0, 0x01);
             CS_Release();
             r1 = SD_SendCmd(CMD41, ACMD41_HCS, 0x01);
             CS_Release();
             if (r1 == R1_READY) break;
-            BSP_DelayMs(10);
-        } while ((BSP_GetTick() - start) < SD_INIT_TIMEOUT);
+            HAL_Delay(10);
+        } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
         if (r1 != R1_READY) {
             sd.state = BSP_SD_STATE_ERROR;
@@ -415,7 +468,7 @@ bsp_sd_status_t BSP_SD_Init(void)
         /* CMD58 读取 OCR, 检测 CCS 位 */
         SD_SendCmd(CMD58, 0, 0x01);
         for (int i = 0; i < 4; i++) {
-            buf[i] = BSP_SPI_RW(SD_DUMMY);
+            buf[i] = SD_SPI_RW(SD_DUMMY);
         }
         CS_Release();
 
@@ -433,15 +486,15 @@ bsp_sd_status_t BSP_SD_Init(void)
 
         if (r1 <= 1) {
             /* V1 卡 */
-            start = BSP_GetTick();
+            start = HAL_GetTick();
             do {
                 SD_SendCmd(CMD55, 0, 0x01);
                 CS_Release();
                 r1 = SD_SendCmd(CMD41, 0, 0x01);
                 CS_Release();
                 if (r1 == R1_READY) break;
-                BSP_DelayMs(10);
-            } while ((BSP_GetTick() - start) < SD_INIT_TIMEOUT);
+                HAL_Delay(10);
+            } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
             if (r1 != R1_READY) {
                 sd.state = BSP_SD_STATE_ERROR;
@@ -449,13 +502,13 @@ bsp_sd_status_t BSP_SD_Init(void)
             }
         } else {
             /* MMC 卡 */
-            start = BSP_GetTick();
+            start = HAL_GetTick();
             do {
                 r1 = SD_SendCmd(CMD1, 0, 0x01);
                 CS_Release();
                 if (r1 == R1_READY) break;
-                BSP_DelayMs(10);
-            } while ((BSP_GetTick() - start) < SD_INIT_TIMEOUT);
+                HAL_Delay(10);
+            } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
             if (r1 != R1_READY) {
                 sd.state = BSP_SD_STATE_ERROR;
@@ -644,12 +697,12 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
          * 多块写期间 CS 维持低电平, 逐块写入, 最后发停止令牌。
          */
         for (uint32_t i = 0; i < count; i++) {
-            BSP_SPI_CS_Low();
+            CS_Select();
             SD_WaitReady(SD_CMD_TIMEOUT);
 
             if (SD_SendBlock(buffer + (i * 512), TOKEN_START_MULTI) != 0) {
                 /* 异常中止: 发停止令牌 */
-                BSP_SPI_RW(TOKEN_STOP_TRANS);
+                SD_SPI_RW(TOKEN_STOP_TRANS);
                 SD_WaitReady(SD_WRITE_TIMEOUT);
                 CS_Release();
                 return BSP_SD_ERR_RW;
@@ -657,9 +710,9 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
         }
 
         /* 发送停止传输令牌 */
-        BSP_SPI_CS_Low();
+        CS_Select();
         SD_WaitReady(SD_CMD_TIMEOUT);
-        BSP_SPI_RW(TOKEN_STOP_TRANS);
+        SD_SPI_RW(TOKEN_STOP_TRANS);
         SD_WaitReady(SD_WRITE_TIMEOUT);
         CS_Release();
         return BSP_SD_OK;
@@ -672,7 +725,7 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
 bsp_sd_status_t BSP_SD_Sync(void)
 {
     CS_Release();
-    BSP_SPI_RW(SD_DUMMY);
-    BSP_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
+    SD_SPI_RW(SD_DUMMY);
     return BSP_SD_OK;
 }
