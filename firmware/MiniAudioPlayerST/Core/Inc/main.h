@@ -57,6 +57,17 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SD_CS_Pin GPIO_PIN_4
+#define SD_CS_GPIO_Port GPIOA
+#define VS1003_DREQ_Pin GPIO_PIN_10
+#define VS1003_DREQ_GPIO_Port GPIOB
+#define VS1003_DREQ_EXTI_IRQn EXTI4_15_IRQn
+#define VS1003_XCS_Pin GPIO_PIN_11
+#define VS1003_XCS_GPIO_Port GPIOB
+#define VS1003_XDCS_Pin GPIO_PIN_12
+#define VS1003_XDCS_GPIO_Port GPIOB
+#define VS1003_XRESET_Pin GPIO_PIN_8
+#define VS1003_XRESET_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

@@ -39,6 +39,16 @@ HAL_StatusTypeDef BSP_SPI_RW(const bsp_spi_context_t *context,
                              uint32_t timeout);
 
 /**
+  * @brief  多字节全双工收发
+  * @note   适用于要求命令和响应处于同一个 SPI 事务中的设备协议。
+  */
+HAL_StatusTypeDef BSP_SPI_TxRx(const bsp_spi_context_t *context,
+                               const uint8_t *tx_buf,
+                               uint8_t *rx_buf,
+                               uint16_t len,
+                               uint32_t timeout);
+
+/**
   * @brief  多字节发送
   */
 HAL_StatusTypeDef BSP_SPI_Tx(const bsp_spi_context_t *context,

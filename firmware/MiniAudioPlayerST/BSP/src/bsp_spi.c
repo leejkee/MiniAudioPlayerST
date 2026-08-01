@@ -28,6 +28,26 @@ HAL_StatusTypeDef BSP_SPI_RW(const bsp_spi_context_t *context,
                                    timeout);
 }
 
+HAL_StatusTypeDef BSP_SPI_TxRx(const bsp_spi_context_t *context,
+                               const uint8_t *tx_buf,
+                               uint8_t *rx_buf,
+                               uint16_t len,
+                               uint32_t timeout)
+{
+    if (!BSP_SPI_IsValid(context)
+        || (tx_buf == NULL)
+        || (rx_buf == NULL)
+        || (len == 0U)) {
+        return HAL_ERROR;
+    }
+
+    return HAL_SPI_TransmitReceive(context->hspi,
+                                   (uint8_t *)tx_buf,
+                                   rx_buf,
+                                   len,
+                                   timeout);
+}
+
 HAL_StatusTypeDef BSP_SPI_Tx(const bsp_spi_context_t *context,
                              const uint8_t *buf,
                              uint16_t len,
@@ -69,6 +89,10 @@ HAL_StatusTypeDef BSP_SPI_SetPrescaler(const bsp_spi_context_t *context,
 {
     if (!BSP_SPI_IsValid(context)) {
         return HAL_ERROR;
+    }
+
+    if (context->hspi->Init.BaudRatePrescaler == prescaler) {
+        return HAL_OK;
     }
 
     context->hspi->Init.BaudRatePrescaler = prescaler;
