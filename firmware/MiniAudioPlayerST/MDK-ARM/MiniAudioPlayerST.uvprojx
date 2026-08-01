@@ -1146,6 +1146,11 @@
               <FilePath>..\App\src\file_manager.c</FilePath>
             </File>
             <File>
+              <FileName>player.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\player.c</FilePath>
+            </File>
+            <File>
               <FileName>ui_file_page.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\src\ui_file_page.c</FilePath>

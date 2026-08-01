@@ -53,6 +53,29 @@ uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_char
 
 uint8_t SD_CountFiles(const WCHAR *path);
 
+/**
+ * @brief  统计目录中的 MP3/WAV 音频文件
+ */
+uint32_t SD_CountAudioFiles(const WCHAR *path);
+
+/**
+ * @brief  获取音频文件列表窗口
+ * @note   只返回普通文件中的 .mp3/.wav，扩展名不区分大小写。
+ */
+uint8_t SD_GetAudioFileListWindow(WCHAR **list,
+                                  uint8_t max_entries,
+                                  uint16_t max_chars_per_entry,
+                                  uint32_t start_index,
+                                  const WCHAR *path);
+
+/**
+ * @brief  按音频文件索引构造完整路径
+ * @retval 1 成功，0 失败或索引越界
+ */
+uint8_t SD_GetAudioFilePathByIndex(const WCHAR *directory,
+                                   uint32_t index,
+                                   WCHAR *path,
+                                   uint16_t path_capacity);
 
 #ifdef __cplusplus
 }

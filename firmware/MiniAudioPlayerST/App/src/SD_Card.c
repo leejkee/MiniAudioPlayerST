@@ -15,6 +15,9 @@
 
 /* 内部辅助 ----------------------------------------------------------------*/
 
+/* 音频目录扫描共用 LFN 缓冲，当前裸机实现不支持并发目录扫描。 */
+static WCHAR audio_lfn_buf[_MAX_LFN + 1];
+
 /**
   * @brief  将 FatFs FRESULT 映射为应用层 SD_Status_t
   */
@@ -76,6 +79,93 @@ static void wchar_ncpy(WCHAR *dst, const WCHAR *src, int max_chars)
         dst[i] = src[i];
     }
     dst[i] = 0;
+}
+
+static WCHAR ascii_to_lower(WCHAR ch)
+{
+    if (ch >= (WCHAR)'A' && ch <= (WCHAR)'Z') {
+        return ch + ((WCHAR)'a' - (WCHAR)'A');
+    }
+    return ch;
+}
+
+static uint8_t is_audio_file_name(const WCHAR *name)
+{
+    const WCHAR *extension = NULL;
+
+    if (name == NULL) {
+        return 0U;
+    }
+
+    while (*name != 0U) {
+        if (*name == (WCHAR)'.') {
+            extension = name;
+        }
+        name++;
+    }
+
+    if (extension == NULL) {
+        return 0U;
+    }
+
+    if ((ascii_to_lower(extension[0]) == (WCHAR)'.')
+        && (ascii_to_lower(extension[1]) == (WCHAR)'m')
+        && (ascii_to_lower(extension[2]) == (WCHAR)'p')
+        && (ascii_to_lower(extension[3]) == (WCHAR)'3')
+        && (extension[4] == 0U)) {
+        return 1U;
+    }
+
+    if ((ascii_to_lower(extension[0]) == (WCHAR)'.')
+        && (ascii_to_lower(extension[1]) == (WCHAR)'w')
+        && (ascii_to_lower(extension[2]) == (WCHAR)'a')
+        && (ascii_to_lower(extension[3]) == (WCHAR)'v')
+        && (extension[4] == 0U)) {
+        return 1U;
+    }
+
+    return 0U;
+}
+
+// 拼接文件路径，返回 1 表示成功，0 表示失败 (路径过长)
+static uint8_t build_file_path(const WCHAR *directory,
+                               const WCHAR *name,
+                               WCHAR *path,
+                               uint16_t path_capacity)
+{
+    uint16_t length = 0U;
+
+    if ((directory == NULL) || (name == NULL)
+        || (path == NULL) || (path_capacity == 0U)) {
+        return 0U;
+    }
+
+    while ((*directory != 0U) && (length + 1U < path_capacity)) {
+        path[length++] = *directory++;
+    }
+    if (*directory != 0U) {
+        path[0] = 0U;
+        return 0U;
+    }
+
+    if ((length > 0U) && (path[length - 1U] != (WCHAR)'/')) {
+        if (length + 1U >= path_capacity) {
+            path[0] = 0U;
+            return 0U;
+        }
+        path[length++] = (WCHAR)'/';
+    }
+
+    while ((*name != 0U) && (length + 1U < path_capacity)) {
+        path[length++] = *name++;
+    }
+    if (*name != 0U) {
+        path[0] = 0U;
+        return 0U;
+    }
+
+    path[length] = 0U;
+    return 1U;
 }
 
 /*
@@ -233,12 +323,15 @@ SD_Status_t SD_Debug_ListDir(const char *path)
         if (fno.fattrib & AM_DIR) {
             BSP_DEBUG_PRINTF("  [DIR]  %s\r\n", display);
         } else {
-            BSP_DEBUG_PRINTF("  [FILE] %s  %lu bytes\r\n", display, fno.fsize);
+            BSP_DEBUG_PRINTF("  [FILE] %s  %lu bytes\r\n",
+                             display,
+                             (unsigned long)fno.fsize);
         }
     }
 
     f_closedir(&dir);
-    BSP_DEBUG_PRINTF("[SD] Total: %lu entries\r\n", count);
+    BSP_DEBUG_PRINTF("[SD] Total: %lu entries\r\n",
+                     (unsigned long)count);
     return SD_OK;
 }
 
@@ -290,4 +383,136 @@ uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_char
 
     f_closedir(&dir);
     return count;
+}
+
+uint32_t SD_CountAudioFiles(const WCHAR *path)
+{
+    DIR dir;
+    FILINFO fno = {0};
+    uint32_t count = 0U;
+
+    if (path == NULL) {
+        return 0U;
+    }
+
+    fno.lfname = audio_lfn_buf;
+    fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
+
+    if (f_opendir(&dir, path) != FR_OK) {
+        return 0U;
+    }
+
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+        const WCHAR *name;
+
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+            continue;
+        }
+
+        name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
+        if (is_audio_file_name(name)) {
+            count++;
+        }
+    }
+
+    f_closedir(&dir);
+    return count;
+}
+
+uint8_t SD_GetAudioFileListWindow(WCHAR **list,
+                                  uint8_t max_entries,
+                                  uint16_t max_chars_per_entry,
+                                  uint32_t start_index,
+                                  const WCHAR *path)
+{
+    DIR dir;
+    FILINFO fno = {0};
+    uint32_t audio_index = 0U;
+    uint8_t count = 0U;
+
+    if ((list == NULL) || (path == NULL)
+        || (max_entries == 0U) || (max_chars_per_entry == 0U)) {
+        return 0U;
+    }
+
+    fno.lfname = audio_lfn_buf;
+    fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
+
+    if (f_opendir(&dir, path) != FR_OK) {
+        return 0U;
+    }
+
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+        const WCHAR *name;
+
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+            continue;
+        }
+
+        name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
+        if (!is_audio_file_name(name)) {
+            continue;
+        }
+
+        if (audio_index++ < start_index) {
+            continue;
+        }
+
+        wchar_ncpy(list[count], name, max_chars_per_entry);
+        count++;
+        if (count >= max_entries) {
+            break;
+        }
+    }
+
+    f_closedir(&dir);
+    return count;
+}
+
+uint8_t SD_GetAudioFilePathByIndex(const WCHAR *directory,
+                                   uint32_t index,
+                                   WCHAR *path,
+                                   uint16_t path_capacity)
+{
+    DIR dir;
+    FILINFO fno = {0};
+    uint32_t audio_index = 0U;
+    uint8_t result = 0U;
+
+    if ((directory == NULL) || (path == NULL) || (path_capacity == 0U)) {
+        return 0U;
+    }
+    path[0] = 0U;
+
+    fno.lfname = audio_lfn_buf;
+    fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
+
+    if (f_opendir(&dir, directory) != FR_OK) {
+        return 0U;
+    }
+
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+        const WCHAR *name;
+
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+            continue;
+        }
+
+        name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
+        if (!is_audio_file_name(name)) {
+            continue;
+        }
+
+        if (audio_index == index) {
+            result = build_file_path(directory,
+                                     name,
+                                     path,
+                                     path_capacity);
+            break;
+        }
+        audio_index++;
+    }
+
+    f_closedir(&dir);
+    return result;
 }
