@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+void KeyTest_Init(void);
+
 void KeyTest_Run(void);
 
 #ifdef __cplusplus

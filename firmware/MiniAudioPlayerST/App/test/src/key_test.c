@@ -92,3 +92,11 @@ void KeyTest_Run(void)
 
     previous_pressed = current_pressed;
 }
+
+void KeyTest_Init(void)
+{
+    BSP_DEBUG_PRINTF("\r\n========== Key Driver UART Test ==========\r\n");
+    BSP_DEBUG_PRINTF("[KEY] Initializing key driver...\r\n");
+    BSP_Key_Init();
+    BSP_DEBUG_PRINTF("[KEY] Key driver initialized. Press and release keys to see debug output.\r\n");
+}
