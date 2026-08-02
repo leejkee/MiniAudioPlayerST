@@ -27,8 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "bsp_key.h"
-#include "vs1003_test.h"
+#include "playlist_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,9 +98,8 @@ int main(void)
   MX_FATFS_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  BSP_Key_Init();  /* 按键模块初始化: 启动 TIM1 10ms 消抖扫描 */
+  Playlist_Test_Init();
 
-  VS1003_Test_Init();  /* VS1003 初始化并播放一次可听正弦测试音 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -111,7 +109,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    VS1003_Test_Run();  /* 释放 OK 键可重复播放测试音 */
+    Playlist_Test_Run();
   }
   /* USER CODE END 3 */
 }
