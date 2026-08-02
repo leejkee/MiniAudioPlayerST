@@ -16,7 +16,7 @@ typedef struct
 
 
 void UI_Render_SwitchPage(PageHandler_t *page);
-void UI_Render_Tick(void);        /* 主循环每帧调用: 轮询按键并分发给当前页面 */
+void UI_Render_Tick(void); /* 主循环每帧调用页面更新并分发按键事件 */
 
 
 #ifdef __cplusplus

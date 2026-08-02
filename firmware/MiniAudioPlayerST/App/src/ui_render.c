@@ -14,13 +14,21 @@ void UI_Render_SwitchPage(PageHandler_t *page)
 }
 
 /**
-  * @brief  主循环每帧调用: 轮询所有按键, 将事件分发给当前页面
+  * @brief  主循环每帧调用页面更新，并分发按键事件
   * @note   按键事件由 TIM1 中断中的 BSP_Key_Poll() 产生 (边沿触发, 消费即清零)。
-  *         无事件时快速返回, 不阻塞。
+  *         页面 on_tick 和按键处理均不得阻塞。
   */
 void UI_Render_Tick(void)
 {
-    if (current_page == NULL || current_page->on_key == NULL) {
+    if (current_page == NULL) {
+        return;
+    }
+
+    if (current_page->on_tick != NULL) {
+        current_page->on_tick();
+    }
+
+    if (current_page->on_key == NULL) {
         return;
     }
 

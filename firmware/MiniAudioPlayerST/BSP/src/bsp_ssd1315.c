@@ -3,6 +3,7 @@
 #include "font_en.h"
 #include "font_cn.h"
 #include "font_file_cn.h"
+#include "font_icon.h"
 #include <stdlib.h>
 
 /* ========================================================================== */
@@ -339,4 +340,30 @@ void BSP_SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType 
     BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
   }
   dirty_pages |= (1 << (page + 1));
+}
+
+void BSP_SSD1315_ShowIcon(uint8_t x,
+                          uint8_t y,
+                          uint32_t unicode,
+                          uint8_t large)
+{
+  uint16_t index = font_icon_lookup(unicode);
+  uint8_t page = y / 8U;
+  const uint8_t *bitmap;
+
+  if ((index == FONT_ICON_NOT_FOUND)
+      || (x > 128U - FONT_ICON_CELL_WIDTH)
+      || (y > 64U - FONT_ICON_CELL_HEIGHT)) {
+    return;
+  }
+
+  bitmap = (large != 0U)
+      ? font_icon_large_16x16[index]
+      : font_icon_small_16x16[index];
+  for (uint8_t col = 0U; col < FONT_ICON_CELL_WIDTH; col++) {
+    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
+    BSP_SSD1315_GRAM[page + 1U][x + col]
+        = bitmap[FONT_ICON_CELL_WIDTH + col];
+  }
+  dirty_pages |= (uint8_t)((1U << page) | (1U << (page + 1U)));
 }

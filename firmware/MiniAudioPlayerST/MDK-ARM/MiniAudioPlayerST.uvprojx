@@ -1116,6 +1116,11 @@
               <FilePath>..\App\src\font_file_cn.c</FilePath>
             </File>
             <File>
+              <FileName>font_icon.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\font_icon.c</FilePath>
+            </File>
+            <File>
               <FileName>ssd1315_font_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\test\src\ssd1315_font_test.c</FilePath>
@@ -1146,9 +1151,19 @@
               <FilePath>..\App\src\file_manager.c</FilePath>
             </File>
             <File>
+              <FileName>mp3_metadata.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\mp3_metadata.c</FilePath>
+            </File>
+            <File>
               <FileName>player.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\src\player.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_main_page.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\ui_main_page.c</FilePath>
             </File>
             <File>
               <FileName>ui_file_page.c</FileName>
@@ -1169,6 +1184,11 @@
               <FileName>playlist_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\test\src\playlist_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>main_page_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test\src\main_page_test.c</FilePath>
             </File>
           </Files>
         </Group>

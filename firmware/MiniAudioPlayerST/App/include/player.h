@@ -46,7 +46,7 @@ typedef enum
 
 /**
   * @brief  初始化文件列表和 VS1003
-  * @retval PLAYER_ERR_NO_FILES 表示初始化成功但 /music 中没有 MP3/WAV。
+  * @retval PLAYER_ERR_NO_FILES 表示初始化成功但 /music 中没有 MP3。
   */
 player_status_t Player_Init(void);
 
@@ -97,6 +97,18 @@ uint32_t Player_GetFilePosition(void);
 uint32_t Player_GetFileSize(void);
 uint8_t Player_GetProgressPercent(void);
 const WCHAR *Player_GetCurrentPath(void);
+
+/**
+  * @brief  获取当前歌曲总时长
+  * @retval 秒；ID3 TLEN 缺失且无法确认 CBR 时返回 0
+  */
+uint32_t Player_GetDurationSeconds(void);
+
+/**
+  * @brief  从 VS1003 解码时间寄存器获取当前已播放时长
+  * @retval 秒；寄存器读取失败时返回最近一次成功读取的值
+  */
+uint32_t Player_GetElapsedSeconds(void);
 
 #ifdef __cplusplus
 }

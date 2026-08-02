@@ -116,14 +116,6 @@ static uint8_t is_audio_file_name(const WCHAR *name)
         return 1U;
     }
 
-    if ((ascii_to_lower(extension[0]) == (WCHAR)'.')
-        && (ascii_to_lower(extension[1]) == (WCHAR)'w')
-        && (ascii_to_lower(extension[2]) == (WCHAR)'a')
-        && (ascii_to_lower(extension[3]) == (WCHAR)'v')
-        && (extension[4] == 0U)) {
-        return 1U;
-    }
-
     return 0U;
 }
 
@@ -143,6 +135,8 @@ static uint8_t build_file_path(const WCHAR *directory,
     while ((*directory != 0U) && (length + 1U < path_capacity)) {
         path[length++] = *directory++;
     }
+
+    // length + 1 >= path_capacity, 越界，说明路径过长，直接返回失败，并将 path[0] 置为 0
     if (*directory != 0U) {
         path[0] = 0U;
         return 0U;

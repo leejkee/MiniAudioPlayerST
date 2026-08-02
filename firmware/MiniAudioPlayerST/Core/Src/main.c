@@ -27,7 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "playlist_test.h"
+#include "main_page_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,7 +98,7 @@ int main(void)
   MX_FATFS_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  Playlist_Test_Init();
+  MainPage_Test_Init();
 
   /* USER CODE END 2 */
 
@@ -109,7 +109,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    Playlist_Test_Run();
+    MainPage_Test_Run();
   }
   /* USER CODE END 3 */
 }

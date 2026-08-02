@@ -8,6 +8,7 @@
 
 #include "player.h"
 #include "file_manager.h"
+#include "mp3_metadata.h"
 #include "bsp_vs1003.h"
 #include <string.h>
 
@@ -40,6 +41,11 @@ typedef struct
     uint16_t buffer_offset; // 这些数据已经向vs1003发送到什么位置
     uint16_t end_flush_remaining; // 文件传输结束，需要发送多少 byte 到vs1003来作为补发数据，确保播放完毕
 
+    // 单曲播放状态
+    uint32_t duration_seconds; // 当前歌曲总时长
+    uint16_t elapsed_seconds; // 已经播放的时长
+    uint32_t audio_data_size; // 排除 ID3v2/ID3v1 后的音频数据大小
+
     WCHAR current_path[PLAYER_PATH_CAPACITY]; // 当前歌曲的 unicode 路径
 } player_context_t;
 
@@ -53,19 +59,31 @@ static void Player_CloseFile(void)
     }
 }
 
-static void Player_ClearStreamBuffer(void)
+static void Player_ResetTrack(void)
 {
+    Player_CloseFile();
     player.buffer_size = 0U;
     player.buffer_offset = 0U;
     player.file_position = 0U;
     player.end_pending = 0U;
     player.end_flush_remaining = 0U;
+    player.duration_seconds = 0U;
+    player.elapsed_seconds = 0U;
+    player.audio_data_size = 0U;
+}
+
+static void Player_BeginEndOfTrack(void)
+{
+    Player_CloseFile();
+    player.buffer_size = 0U;
+    player.buffer_offset = 0U;
+    player.end_pending = 1U;
+    player.end_flush_remaining = PLAYER_END_FLUSH_BYTES;
 }
 
 static void Player_SetError(player_status_t error)
 {
-    Player_CloseFile();
-    Player_ClearStreamBuffer();
+    Player_ResetTrack();
     player.last_error = error;
     player.state = PLAYER_STATE_ERROR;
 }
@@ -110,19 +128,15 @@ static player_status_t Player_ApplyVolume(uint8_t percent)
 
 static void Player_HandleEndOfTrack(void)
 {
-    player_status_t status = PLAYER_OK;
-    uint32_t next_index = player.current_index;
-
-    Player_CloseFile();
-    player.end_pending = 0U;
-    player.end_flush_remaining = 0U;
+    player_status_t status;
 
     if (player.mode == PLAYER_MODE_REPEAT_ALL) {
-        next_index = (player.current_index + 1U) % player.track_count;
+        status = Player_Next();
+    } else {
+        status = Player_Play(player.current_index);
     }
 
-    status = Player_Play(next_index);
-    if (status != PLAYER_OK) {
+    if ((status != PLAYER_OK) && (player.state != PLAYER_STATE_ERROR)) {
         Player_SetError(status);
     }
 }
@@ -236,23 +250,25 @@ player_status_t Player_RefreshPlaylist(void)
 player_status_t Player_Play(uint32_t track_index)
 {
     static WCHAR path[PLAYER_PATH_CAPACITY];
+    mp3_metadata_t metadata;
     bsp_vs1003_status_t decoder_status;
     FRESULT file_status;
 
     if (player.initialized == 0U) {
         return PLAYER_ERR_NOT_INITIALIZED;
     }
+
     if ((player.track_count == 0U) || (track_index >= player.track_count)) {
         return PLAYER_ERR_PARAM;
     }
+
     if (!FileManager_GetPath(track_index,
                              path,
                              sizeof(path) / sizeof(path[0]))) {
         return PLAYER_ERR_OPEN;
     }
 
-    Player_CloseFile();
-    Player_ClearStreamBuffer();
+    Player_ResetTrack();
 
     file_status = f_open(&player.file, path, FA_READ | FA_OPEN_EXISTING);
     if (file_status != FR_OK) {
@@ -261,18 +277,34 @@ player_status_t Player_Play(uint32_t track_index)
     }
     player.file_open = 1U;
 
+    player.file_size = (uint32_t)f_size(&player.file);
+    MP3_MetadataRead(&player.file,
+                     player.file_size,
+                     player.buffer,
+                     (uint16_t)sizeof(player.buffer),
+                     &metadata);
+    player.duration_seconds = metadata.duration_seconds;
+    player.audio_data_size = metadata.audio_size;
+
+    file_status = f_lseek(&player.file, metadata.audio_offset);
+    if (file_status != FR_OK) {
+        Player_SetError(PLAYER_ERR_READ);
+        return PLAYER_ERR_READ;
+    }
+
     decoder_status = BSP_VS1003_SoftReset();
+
     if (decoder_status != BSP_VS1003_OK) {
         Player_SetError(PLAYER_ERR_DECODER);
         return PLAYER_ERR_DECODER;
     }
+
     if (Player_ApplyVolume(player.volume) != PLAYER_OK) {
         Player_SetError(PLAYER_ERR_DECODER);
         return PLAYER_ERR_DECODER;
     }
 
     player.current_index = track_index;
-    player.file_size = (uint32_t)f_size(&player.file);
     Player_CopyPath(player.current_path,
                     path,
                     sizeof(player.current_path)
@@ -295,8 +327,7 @@ void Player_Stop(void)
         return;
     }
 
-    Player_CloseFile();
-    Player_ClearStreamBuffer();
+    Player_ResetTrack();
 
     if (BSP_VS1003_SoftReset() != BSP_VS1003_OK) {
         Player_SetError(PLAYER_ERR_DECODER);
@@ -333,9 +364,9 @@ void Player_TogglePause(void)
     }
 }
 
-player_status_t Player_Next(void)
+static player_status_t Player_PlayRelative(int8_t direction)
 {
-    uint32_t next_index;
+    uint32_t track_index;
 
     if (player.initialized == 0U) {
         return PLAYER_ERR_NOT_INITIALIZED;
@@ -344,25 +375,25 @@ player_status_t Player_Next(void)
         return PLAYER_ERR_NO_FILES;
     }
 
-    next_index = (player.current_index + 1U) % player.track_count;
-    return Player_Play(next_index);
+    if (direction > 0) {
+        track_index = (player.current_index + 1U) % player.track_count;
+    } else {
+        track_index = (player.current_index == 0U)
+            ? player.track_count - 1U
+            : player.current_index - 1U;
+    }
+
+    return Player_Play(track_index);
+}
+
+player_status_t Player_Next(void)
+{
+    return Player_PlayRelative(1);
 }
 
 player_status_t Player_Previous(void)
 {
-    uint32_t previous_index;
-
-    if (player.initialized == 0U) {
-        return PLAYER_ERR_NOT_INITIALIZED;
-    }
-    if (player.track_count == 0U) {
-        return PLAYER_ERR_NO_FILES;
-    }
-
-    previous_index = (player.current_index == 0U)
-        ? player.track_count - 1U
-        : player.current_index - 1U;
-    return Player_Play(previous_index);
+    return Player_PlayRelative(-1);
 }
 
 player_status_t Player_SetVolume(uint8_t percent)
@@ -398,8 +429,10 @@ void Player_Tick(void)
 {
     UINT bytes_read;
     FRESULT file_status;
+    uint32_t stream_remaining;
     uint16_t remaining;
     uint16_t chunk;
+    uint16_t read_size;
     bsp_vs1003_status_t decoder_status;
 
     if (player.state != PLAYER_STATE_PLAYING) {
@@ -415,20 +448,28 @@ void Player_Tick(void)
     }
 
     if (player.buffer_offset >= player.buffer_size) {
+        stream_remaining = (player.audio_data_size > player.file_position)
+            ? player.audio_data_size - player.file_position
+            : 0U;
+        if ((player.audio_data_size != 0U) && (stream_remaining == 0U)) {
+            Player_BeginEndOfTrack();
+            return;
+        }
+
+        read_size = sizeof(player.buffer);
+        if ((player.audio_data_size != 0U) && (stream_remaining < read_size)) {
+            read_size = (uint16_t)stream_remaining;
+        }
         file_status = f_read(&player.file,
                              player.buffer,
-                             sizeof(player.buffer),
+                             read_size,
                              &bytes_read);
         if (file_status != FR_OK) {
             Player_SetError(PLAYER_ERR_READ);
             return;
         }
         if (bytes_read == 0U) {
-            Player_CloseFile();
-            player.buffer_size = 0U;
-            player.buffer_offset = 0U;
-            player.end_pending = 1U;
-            player.end_flush_remaining = PLAYER_END_FLUSH_BYTES;
+            Player_BeginEndOfTrack();
             return;
         }
 
@@ -505,13 +546,16 @@ uint32_t Player_GetFileSize(void)
 uint8_t Player_GetProgressPercent(void)
 {
     uint32_t progress;
+    uint32_t total_size = (player.audio_data_size != 0U)
+        ? player.audio_data_size
+        : player.file_size;
 
-    if (player.file_size == 0U) {
+    if (total_size == 0U) {
         return 0U;
     }
 
     progress = (uint32_t)(((uint64_t)player.file_position * 100U)
-                          / player.file_size);
+                          / total_size);
     return (progress > 100U) ? 100U : (uint8_t)progress;
 }
 
@@ -520,4 +564,26 @@ const WCHAR *Player_GetCurrentPath(void)
     return (player.current_path[0] == 0U)
         ? NULL
         : player.current_path;
+}
+
+uint32_t Player_GetDurationSeconds(void)
+{
+    return player.duration_seconds;
+}
+
+uint32_t Player_GetElapsedSeconds(void)
+{
+    uint16_t seconds;
+
+    if ((player.state != PLAYER_STATE_PLAYING)
+        && (player.state != PLAYER_STATE_PAUSED)) {
+        return player.elapsed_seconds;
+    }
+
+    if (BSP_VS1003_ReadRegister(BSP_VS1003_REG_DECODE_TIME,
+                                &seconds) == BSP_VS1003_OK) {
+        player.elapsed_seconds = seconds;
+    }
+
+    return player.elapsed_seconds;
 }

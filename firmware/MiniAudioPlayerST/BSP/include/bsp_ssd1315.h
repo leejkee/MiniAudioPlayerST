@@ -45,6 +45,15 @@ void BSP_SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_
 
 void BSP_SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type);
 
+/**
+  * @brief  显示固定 16x16 单元中的 Unicode 图标
+  * @param  large 0 使用居中的 12x12 字模，非 0 使用 16x16 字模
+  */
+void BSP_SSD1315_ShowIcon(uint8_t x,
+                          uint8_t y,
+                          uint32_t unicode,
+                          uint8_t large);
+
 void BSP_SSD1315_ScrollDisplay(uint8_t num, uint8_t space);
 
 
