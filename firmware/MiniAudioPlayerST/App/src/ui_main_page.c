@@ -4,6 +4,7 @@
 #include "file_manager.h"
 #include "font_en.h"
 #include "player.h"
+#include "ui_menu_pages.h"
 
 #include <string.h>
 
@@ -316,6 +317,8 @@ static void _Page_Key(bsp_key_id_t key)
             _Refresh(1U);
             break;
         case KEY_MENU:
+            (void)UI_Render_PushPage(&Page_Menu);
+            break;
         default:
             break;
     }
@@ -331,6 +334,7 @@ static void _Page_Tick(void)
         _Refresh(0U);
     }
 }
+
 
 PageHandler_t Page_Main = {
     .on_enter = _Page_Enter,

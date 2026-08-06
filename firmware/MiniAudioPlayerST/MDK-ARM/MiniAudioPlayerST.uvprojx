@@ -1166,6 +1166,11 @@
               <FilePath>..\App\src\ui_main_page.c</FilePath>
             </File>
             <File>
+              <FileName>ui_menu_pages.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\ui_menu_pages.c</FilePath>
+            </File>
+            <File>
               <FileName>ui_file_page.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\src\ui_file_page.c</FilePath>
