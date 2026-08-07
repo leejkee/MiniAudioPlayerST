@@ -17,16 +17,44 @@
 #if BSP_DEBUG_UART
 /* -------------------------------------------------------------------------- */
 
+#if defined(BSP_UART_USE_NEWLIB)
+
 /**
-  * @brief  printf 重定向到 USART2 (被 printf / BSP_DEBUG_PRINTF 底层调用)
+  * @brief  GCC newlib 的标准输出系统调用，将 printf 重定向到 USART2
   * @note   依赖 CubeMX 生成的 huart2 句柄
   */
-int fputc(int ch, FILE *f)
+int _write(int file, char *data, int length)
 {
-    (void)f;
+    (void)file;
+
+    if ((data == NULL) || (length <= 0))
+    {
+        return 0;
+    }
+
+    if (HAL_UART_Transmit(&huart2, (uint8_t *)data, (uint16_t)length,
+                          HAL_MAX_DELAY) != HAL_OK)
+    {
+        return -1;
+    }
+
+    return length;
+}
+
+#else
+
+/**
+  * @brief  Keil ARMCC 的标准输出入口，将 printf 重定向到 USART2
+  * @note   依赖 CubeMX 生成的 huart2 句柄
+  */
+int fputc(int ch, FILE *stream)
+{
+    (void)stream;
     HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
     return ch;
 }
+
+#endif /* BSP_UART_USE_NEWLIB */
 
 /**
   * @brief  调试串口初始化入口

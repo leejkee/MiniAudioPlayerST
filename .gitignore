@@ -8,6 +8,14 @@ compile_commands.json
 AGENTS.md
 /tmp/
 
+# CMake / Ninja
+/build/
+/cmake-build-*/
+cmake/
+CMakeUserPresets.json
+.ninja_deps
+.ninja_log
+
 # Keil MDK
 *.uvguix.*
 *.uvoptx

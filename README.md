@@ -13,8 +13,7 @@
 | 按键 | 4 键 (Menu/OK/L/R) | GPIO |
 | 调试串口 | USART2 (PA2-TX / PA3-RX), 115200-8N1 | 外接 USB 转串口模块 |
 
-> **引脚预留**: PA2 和 PA3 由调试串口占用, 请勿分配给其他外设。
-> CubeMX 中无需配置 USART2, BSP 层自包含 HAL 初始化代码。
+> **引脚预留**: PA2 和 PA3 由 CubeMX 配置的 USART2 调试串口占用，请勿分配给其他外设。
 
 ## 目录结构
 
@@ -33,9 +32,13 @@ MiniAudioPlayerST/
 ├── tools/
 │   ├── WebSerial/            # Web 串口调试工具
 │   └── FontTool/             # 字库 C 代码生成脚本
-├── generate_compile_commands.ps1  # clangd 编译数据库生成脚本
-├── compile_commands.json    # clangd 编译数据库（自动生成，不提交 git）
-└── .clangd                  # clangd 配置文件
+├── cmake/
+│   ├── arm-none-eabi-gcc.cmake    # Arm GNU 工具链配置
+│   ├── STM32F072C8Tx_FLASH.ld     # GCC 链接脚本
+│   └── openocd.cmake              # OpenOCD/ST-Link 烧录目标
+├── CMakeLists.txt            # GCC 构建与模块定义
+├── CMakePresets.json         # Debug/Release 跨平台预设
+└── .clangd                   # clangd 编译数据库位置
 ```
 
 ## 调试串口
@@ -47,14 +50,20 @@ STM32 PA2 (USART2_TX) / PA3 (USART2_RX) ←→ USB 转串口模块 (CH340 / FT23
 ### 固件控制
 
 `BSP/include/bsp_config.h` 中的 `BSP_DEBUG_UART`:
-- **1**: PA2/PA3 初始化为 USART2, `printf` 重定向到串口
-- **0**: 所有调试代码编译期裁剪, PA2/PA3 释放
+- **1**: 启用 `printf` 串口重定向和 `BSP_DEBUG_PRINTF`
+- **0**: 调试打印代码编译期裁剪，但 USART2 仍由 CubeMX 初始化
 
-需要在 CubeMX 配置 USART2
+USART2 的引脚、波特率和硬件初始化由 CubeMX 工程配置管理。
 
 ### 上位机
 
-Chrome浏览器打开 `tools/WebSerial/index.html`, 波特率 115200。
+使用 Chrome/Chromium 打开 WebSerial 上位机，波特率为 115200。建议从仓库根目录启动本地服务器：
+
+```bash
+python -m http.server 8000 -d tools/WebSerial
+```
+
+然后访问 `http://localhost:8000`。
 
 ### 字库生成工具
 
@@ -96,7 +105,7 @@ python tools/FontTool/generate_emoji_font.py `
     --out-dir firmware/MiniAudioPlayerST/App
 ```
 
-> **注意**: 中文字库生成需要 Windows SimSun 字体 (`C:\Windows\Fonts\simsun.ttc`)，首次使用需 `pip install Pillow`。生成后重新执行 `generate_compile_commands.ps1` 更新 clangd 索引。
+> **注意**: 中文字库生成需要 Windows SimSun 字体 (`C:\Windows\Fonts\simsun.ttc`)，首次使用需 `pip install Pillow`。新增或删除生成的 `.c` 文件后，需要同步更新 `CMakeLists.txt` 和 Keil 工程文件。
 
 Unicode 图标脚本默认优先使用 `Segoe UI Symbol`，其次使用 `Segoe UI Emoji`，也可通过 `--font` 指定包含目标图标的 TTF/OTF 字体。输出的 `font_icon.h/.c` 包含 `font_icon_lookup()`、`font_icon_small_16x16` 和 `font_icon_large_16x16`。两套数组使用完全相同的 Unicode 索引顺序、16x16 单元、2 个 OLED page 和 32 字节数据；默认将 12x12 小图形居中放置在单元内，大图形使用 16x16 视觉范围。脚本按单个 Unicode 码点查表，不支持 ZWJ、旗帜、肤色修饰等组合 emoji。
 
@@ -115,23 +124,114 @@ if (icon_index != FONT_ICON_NOT_FOUND) {
 
 ## 快速开始
 
-### 前置条件
+项目支持两套相互独立的固件构建后端：
 
-- STM32CubeMX
-- Keil MDK-ARM (uVision 5)
-- VS Code + clangd 扩展 (LLVM)
+| 开发模式 | 编辑与代码导航 | 编译、链接 | 烧录与调试 |
+|----------|----------------|------------|------------|
+| GCC 全流程 | VS Code + clangd | CMake + `arm-none-eabi-gcc` | OpenOCD + ST-Link |
+| VS Code + Keil | VS Code + clangd（使用 GCC 编译数据库） | Keil ARMCC | Keil IDE |
+| Keil IDE | Keil 编辑器 | Keil ARMCC | Keil IDE |
 
-### 生成 clangd 编译数据库
+CMake/GCC 和 Keil 共用同一份固件源码，但构建配置彼此独立：
 
-每次添加代码，添加目录，CubeMX生成后执行
+- `CMakeLists.txt` 只管理 GCC 构建，不调用 ARMCC，也不替代 Keil 工程。
+- `firmware/MiniAudioPlayerST/MDK-ARM/MiniAudioPlayerST.uvprojx` 继续由 Keil 管理。
+- 使用 Keil 作为最终编译器时，仍可在 Windows 或 Linux 上运行一次 CMake 配置，生成 `compile_commands.json`，供 clangd 提供准确的补全、诊断和跳转。
+- 新增或删除源文件时，需要同时更新 CMake 源文件列表和 Keil 工程。
 
-```powershell
-.\generate_compile_commands.ps1
+### GCC/CMake 开发环境
+
+Linux 和 Windows 均需要：
+
+- CMake 3.22 或更高版本
+- Ninja
+- Arm GNU Toolchain（`arm-none-eabi-gcc`）
+- VS Code + clangd + CMake Tools
+
+需要通过 ST-Link 烧录或调试时，还需要：
+
+- OpenOCD
+- `arm-none-eabi-gdb`
+- VS Code Cortex-Debug（可选）
+
+STM32CubeMX 和 Keil MDK-ARM 只在重新生成 CubeMX 代码或使用 Keil/ARMCC 构建时需要。
+
+### VS Code 补全与跳转
+
+在仓库根目录执行：
+
+```bash
+cmake --preset debug
 ```
 
-### 构建与烧录
+CMake 会生成：
 
-Keil IDE
+```text
+build/debug/compile_commands.json
+```
+
+clangd 通过仓库中的 `.clangd` 自动使用该数据库。仅使用 Keil 构建固件的开发者也需要执行这一步，但不要求使用 GCC 生成的 ELF 作为最终固件。
+
+当编译宏、头文件目录或源文件列表变化时，重新执行 `cmake --preset debug`。普通 `.c/.h` 内容修改不需要重新配置，clangd 会自动更新索引。
+
+### GCC 编译
+
+Debug：
+
+```bash
+cmake --preset debug
+cmake --build --preset debug
+```
+
+Release：
+
+```bash
+cmake --preset release
+cmake --build --preset release
+```
+
+产物位于 `build/debug/` 或 `build/release/`：
+
+```text
+MiniAudioPlayerST.elf
+MiniAudioPlayerST.hex
+MiniAudioPlayerST.bin
+MiniAudioPlayerST.map
+```
+
+### GCC + OpenOCD 烧录
+
+连接一个 ST-Link 时：
+
+```bash
+cmake --build --preset debug --target flash
+```
+
+该目标会先构建 ELF，再通过 OpenOCD 写入、校验并复位 STM32。连接多个 ST-Link 时可指定探针序列号：
+
+```bash
+cmake --preset debug -DSTLINK_SERIAL=<serial-number>
+cmake --build --preset debug --target flash
+```
+
+### Keil/ARMCC 编译与烧录
+
+使用 Keil 打开：
+
+```text
+firmware/MiniAudioPlayerST/MDK-ARM/MiniAudioPlayerST.uvprojx
+```
+
+在 Keil IDE 中执行 Build、Download 或 Debug。Keil 不读取 CMake 构建规则；CMake 生成的 GCC 编译数据库只为 VS Code/clangd 提供开发信息。
+
+### 两套编译器的串口输出
+
+`BSP_DEBUG_PRINTF` 在两套构建中均输出至 USART2：
+
+- GCC/newlib 由 CMake 定义 `BSP_UART_USE_NEWLIB`，底层使用 `_write()`。
+- Keil ARMCC 不定义该宏，底层使用 `fputc()`。
+
+两种方式均使用 CubeMX 生成的 `huart2`，串口参数为 115200-8N1。
 
 ## 测试
 

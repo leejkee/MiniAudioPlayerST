@@ -1136,9 +1136,9 @@
               <FilePath>..\App\test\src\sd_test.c</FilePath>
             </File>
             <File>
-              <FileName>SD_Card.c</FileName>
+              <FileName>sd_card.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\App\src\SD_Card.c</FilePath>
+              <FilePath>..\App\src\sd_card.c</FilePath>
             </File>
             <File>
               <FileName>ui_render.c</FileName>

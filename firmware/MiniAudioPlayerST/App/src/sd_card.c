@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    SD_Card.c
+  * @file    sd_card.c
   * @brief   SD 卡应用层 — 基于 FatFs 的文件系统操作封装
   * @note    依赖 FATFS 层 (fatfs.h), 不直接调用 BSP_SD。
   *          当 _LFN_UNICODE=1 时内部将 char* 路径转为 TCHAR (WCHAR),
