@@ -24,7 +24,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       },
-      "binaryDir": "${sourceDir}/build/linux-debug",
+      "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -33,7 +33,7 @@
       "name": "linux-release",
       "displayName": "STM32 Release (GCC, Linux)",
       "inherits": "linux-debug",
-      "binaryDir": "${sourceDir}/build/linux-release",
+      "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -47,7 +47,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
-      "binaryDir": "${sourceDir}/build/windows-debug",
+      "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_OPENOCD": "OFF",
@@ -60,7 +60,7 @@
       "name": "windows-release",
       "displayName": "STM32 Release (GCC, Windows)",
       "inherits": "windows-debug",
-      "binaryDir": "${sourceDir}/build/windows-release",
+      "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
