@@ -11,7 +11,6 @@ AGENTS.md
 # CMake / Ninja
 /build/
 /cmake-build-*/
-cmake/
 CMakeUserPresets.json
 .ninja_deps
 .ninja_log
