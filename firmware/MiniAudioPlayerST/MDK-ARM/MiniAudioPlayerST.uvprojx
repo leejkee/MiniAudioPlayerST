@@ -1195,6 +1195,11 @@
               <FileType>1</FileType>
               <FilePath>..\App\test\src\main_page_test.c</FilePath>
             </File>
+            <File>
+              <FileName>app_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test\src\app_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -5,10 +5,9 @@
 extern "C" {
 #endif
 
+void App_TestInit(void);
 
-void App_TestInit();
-
-void App_TestRun();
+void App_TestRun(void);
 
 #ifdef __cplusplus
 }
