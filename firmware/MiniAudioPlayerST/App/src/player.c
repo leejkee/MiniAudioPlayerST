@@ -18,6 +18,8 @@
 #define PLAYER_VOLUME_ATTENUATION_MAX 80U
 #define PLAYER_DREQ_POLL_TIMEOUT_MS   1U
 #define PLAYER_END_FLUSH_BYTES        2048U
+#define PLAYER_ELAPSED_RETRY_DELAY_MS 1U
+#define PLAYER_ELAPSED_INVALID_MIN    0xFFF0U
 
 typedef struct
 {
@@ -366,8 +368,12 @@ void Player_TogglePause(void)
 
 static player_status_t Player_PlayRelative(int8_t direction)
 {
-    uint32_t track_index;
+    if (player.mode == PLAYER_MODE_REPEAT_ONE)
+    {
+        return Player_Play(player.current_index);
+    }
 
+    uint32_t track_index;
     if (player.initialized == 0U) {
         return PLAYER_ERR_NOT_INITIALIZED;
     }
@@ -574,15 +580,28 @@ uint32_t Player_GetDurationSeconds(void)
 uint32_t Player_GetElapsedSeconds(void)
 {
     uint16_t seconds;
+    uint8_t retry;
 
     if ((player.state != PLAYER_STATE_PLAYING)
         && (player.state != PLAYER_STATE_PAUSED)) {
         return player.elapsed_seconds;
     }
 
-    if (BSP_VS1003_ReadRegister(BSP_VS1003_REG_DECODE_TIME,
-                                &seconds) == BSP_VS1003_OK) {
-        player.elapsed_seconds = seconds;
+    // 消除SPI毛刺，数据异常重读，2次均异常则保留原本稳定数值
+    for (retry = 0U; retry < 2U; retry++) {
+        if (BSP_VS1003_ReadRegister(BSP_VS1003_REG_DECODE_TIME,
+                                    &seconds) != BSP_VS1003_OK) {
+            break;
+        }
+
+        if (seconds < PLAYER_ELAPSED_INVALID_MIN) {
+            player.elapsed_seconds = seconds;
+            break;
+        }
+
+        if (retry == 0U) {
+            HAL_Delay(PLAYER_ELAPSED_RETRY_DELAY_MS);
+        }
     }
 
     return player.elapsed_seconds;
