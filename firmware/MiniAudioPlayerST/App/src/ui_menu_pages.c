@@ -47,7 +47,7 @@ static void _RenderMenu(void)
 {
     uint8_t index;
 
-    BSP_SSD1315_Clear();
+    BSP_SSD1315_ClearBuffer();
     BSP_SSD1315_ShowString(0U, 0U, "Menu", 1U);
 
     for (index = 0U; index < MENU_ITEM_COUNT; index++) {
@@ -103,7 +103,7 @@ static void _RenderVolume(void)
     uint8_t digits = (volume == 100U) ? 3U : ((volume >= 10U) ? 2U : 1U);
     uint8_t value_x = (uint8_t)((128U - ((uint8_t)(digits + 1U) * 8U)) / 2U);
 
-    BSP_SSD1315_Clear();
+    BSP_SSD1315_ClearBuffer();
     _ShowChineseText(32U, 0U, volume_label, 4U);
     BSP_SSD1315_ShowChar(8U, 32U, '<', 1U);
     BSP_SSD1315_ShowNum(value_x, 32U, volume, digits, 1U);
@@ -148,7 +148,7 @@ static const uint16_t *_ModeLabel(player_mode_t mode)
 
 static void _RenderPlayMode(void)
 {
-    BSP_SSD1315_Clear();
+    BSP_SSD1315_ClearBuffer();
     _ShowChineseText(32U, 0U, mode_label, 4U);
     BSP_SSD1315_ShowChar(8U, 32U, '<', 1U);
     _ShowChineseText(32U, 32U, _ModeLabel(selected_mode), 4U);

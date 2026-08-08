@@ -11,7 +11,7 @@ static uint8_t page_history_count = 0U;
 static void _ActivatePage(PageHandler_t *page)
 {
     current_page = page;
-    BSP_SSD1315_Clear();
+    BSP_SSD1315_ClearBuffer();
     if (current_page->on_enter != NULL) {
         current_page->on_enter();
     }

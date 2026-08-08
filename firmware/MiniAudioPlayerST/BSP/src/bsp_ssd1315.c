@@ -161,14 +161,46 @@ void BSP_SSD1315_ClearPoint(uint8_t x, uint8_t y) {
 }
 
 void BSP_SSD1315_Clear(void) {
-  // 清空显存数组
+  BSP_SSD1315_ClearBuffer();
+  BSP_SSD1315_Refresh();  // 刷新显示
+}
+
+void BSP_SSD1315_ClearBuffer(void) {
+  // 只清空显存数组，由调用方绘制完整帧后再刷新
   for (uint8_t page = 0; page < 8; page++) {
     for (uint8_t col = 0; col < 128; col++) {
       BSP_SSD1315_GRAM[page][col] = 0x00;
     }
   }
-  dirty_pages = 0xFF; // 全部页脏, 确保 Refresh 将全黑数据发送到 OLED
-  BSP_SSD1315_Refresh();  // 刷新显示
+  dirty_pages = 0xFF;
+}
+
+void BSP_SSD1315_ClearArea(uint8_t x,
+                           uint8_t y,
+                           uint8_t width,
+                           uint8_t height) {
+  uint16_t x_end = (uint16_t)x + width;
+  uint16_t y_end = (uint16_t)y + height;
+
+  if ((width == 0U) || (height == 0U) || (x >= 128U) || (y >= 64U)) {
+    return;
+  }
+  if (x_end > 128U) {
+    x_end = 128U;
+  }
+  if (y_end > 64U) {
+    y_end = 64U;
+  }
+
+  for (uint16_t row = y; row < y_end; row++) {
+    uint8_t page = (uint8_t)(row / 8U);
+    uint8_t mask = (uint8_t)(1U << (row % 8U));
+
+    for (uint16_t col = x; col < x_end; col++) {
+      BSP_SSD1315_GRAM[page][col] &= (uint8_t)~mask;
+    }
+    dirty_pages |= (uint8_t)(1U << page);
+  }
 }
 
 void BSP_SSD1315_DisplayOn(void) {

@@ -22,6 +22,16 @@
 #define MAIN_ICON_STOP           0x23F9UL
 #define MAIN_ICON_PLAY           0x25B6UL
 
+#define MAIN_CHANGED_HEADER      (1U << 0)
+#define MAIN_CHANGED_NAME        (1U << 1)
+#define MAIN_CHANGED_CONTROLS    (1U << 2)
+#define MAIN_CHANGED_ELAPSED     (1U << 3)
+#define MAIN_CHANGED_DURATION    (1U << 4)
+#define MAIN_CHANGED_ALL         (MAIN_CHANGED_HEADER | MAIN_CHANGED_NAME \
+                                  | MAIN_CHANGED_CONTROLS \
+                                  | MAIN_CHANGED_ELAPSED \
+                                  | MAIN_CHANGED_DURATION)
+
 typedef struct
 {
     player_mode_t mode;
@@ -241,15 +251,58 @@ static uint8_t _ReadPressedKeys(void)
     return pressed;
 }
 
-static void _Render(void)
+static void _Render(uint8_t changed)
 {
-    BSP_SSD1315_Clear();
-    _RenderHeader();
-    _ShowWideString(0U, MAIN_ROW_HEIGHT, main_meta.name);
-    _RenderControls();
-    _ShowTime(0U, main_meta.elapsed_seconds);
-    BSP_SSD1315_ShowChar(56U, 3U * MAIN_ROW_HEIGHT, '/', 1U);
-    _ShowTime(64U, main_meta.duration_seconds);
+    if (changed == MAIN_CHANGED_ALL) {
+        BSP_SSD1315_ClearBuffer();
+    }
+
+    if ((changed & MAIN_CHANGED_HEADER) != 0U) {
+        if (changed != MAIN_CHANGED_ALL) {
+            BSP_SSD1315_ClearArea(0U, 0U, OLED_WIDTH, MAIN_ROW_HEIGHT);
+        }
+        _RenderHeader();
+    }
+    if ((changed & MAIN_CHANGED_NAME) != 0U) {
+        if (changed != MAIN_CHANGED_ALL) {
+            BSP_SSD1315_ClearArea(0U,
+                                  MAIN_ROW_HEIGHT,
+                                  OLED_WIDTH,
+                                  MAIN_ROW_HEIGHT);
+        }
+        _ShowWideString(0U, MAIN_ROW_HEIGHT, main_meta.name);
+    }
+    if ((changed & MAIN_CHANGED_CONTROLS) != 0U) {
+        if (changed != MAIN_CHANGED_ALL) {
+            BSP_SSD1315_ClearArea(0U,
+                                  2U * MAIN_ROW_HEIGHT,
+                                  OLED_WIDTH,
+                                  MAIN_ROW_HEIGHT);
+        }
+        _RenderControls();
+    }
+    if ((changed & MAIN_CHANGED_ELAPSED) != 0U) {
+        if (changed != MAIN_CHANGED_ALL) {
+            BSP_SSD1315_ClearArea(0U,
+                                  3U * MAIN_ROW_HEIGHT,
+                                  56U,
+                                  MAIN_ROW_HEIGHT);
+        }
+        _ShowTime(0U, main_meta.elapsed_seconds);
+    }
+    if ((changed & MAIN_CHANGED_DURATION) != 0U) {
+        if (changed != MAIN_CHANGED_ALL) {
+            BSP_SSD1315_ClearArea(64U,
+                                  3U * MAIN_ROW_HEIGHT,
+                                  56U,
+                                  MAIN_ROW_HEIGHT);
+        }
+        _ShowTime(64U, main_meta.duration_seconds);
+    }
+    if ((changed == MAIN_CHANGED_ALL)
+        || ((changed & (MAIN_CHANGED_ELAPSED | MAIN_CHANGED_DURATION)) != 0U)) {
+        BSP_SSD1315_ShowChar(56U, 3U * MAIN_ROW_HEIGHT, '/', 1U);
+    }
     BSP_SSD1315_Refresh();
 }
 
@@ -262,16 +315,27 @@ static uint8_t _UpdateMeta(uint8_t force)
     uint32_t duration_seconds = Player_GetDurationSeconds();
     uint8_t volume = Player_GetVolume();
     uint8_t pressed_keys = _ReadPressedKeys();
-    uint8_t changed = force;
+    uint8_t changed = 0U;
 
-    if ((main_meta.mode != mode)
-        || (main_meta.state != state)
-        || (main_meta.track_index != track_index)
-        || (main_meta.elapsed_seconds != elapsed_seconds)
-        || (main_meta.duration_seconds != duration_seconds)
-        || (main_meta.volume != volume)
-        || (main_meta.pressed_keys != pressed_keys)) {
-        changed = 1U;
+    if (force != 0U) {
+        changed = MAIN_CHANGED_ALL;
+    } else {
+        if ((main_meta.mode != mode) || (main_meta.volume != volume)) {
+            changed |= MAIN_CHANGED_HEADER;
+        }
+        if (main_meta.track_index != track_index) {
+            changed |= MAIN_CHANGED_NAME;
+        }
+        if ((main_meta.state != state)
+            || (main_meta.pressed_keys != pressed_keys)) {
+            changed |= MAIN_CHANGED_CONTROLS;
+        }
+        if (main_meta.elapsed_seconds != elapsed_seconds) {
+            changed |= MAIN_CHANGED_ELAPSED;
+        }
+        if (main_meta.duration_seconds != duration_seconds) {
+            changed |= MAIN_CHANGED_DURATION;
+        }
     }
 
     if ((force != 0U) || (main_meta.track_index != track_index)) {
@@ -289,8 +353,10 @@ static uint8_t _UpdateMeta(uint8_t force)
 
 static void _Refresh(uint8_t force)
 {
-    if (_UpdateMeta(force) != 0U) {
-        _Render();
+    uint8_t changed = _UpdateMeta(force);
+
+    if (changed != 0U) {
+        _Render(changed);
     }
     last_refresh_tick = HAL_GetTick();
 }

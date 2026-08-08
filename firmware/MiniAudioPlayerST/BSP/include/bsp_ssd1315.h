@@ -21,6 +21,20 @@ void BSP_SSD1315_DisplayTurn(uint8_t orientation);
 
 void BSP_SSD1315_Clear(void);
 
+/**
+  * @brief  仅清空软件显存，不立即向 OLED 发送黑屏数据
+  * @note   绘制完整帧后调用 BSP_SSD1315_Refresh() 一次性提交。
+  */
+void BSP_SSD1315_ClearBuffer(void);
+
+/**
+  * @brief  清空软件显存中的指定矩形，不立即刷新 OLED
+  */
+void BSP_SSD1315_ClearArea(uint8_t x,
+                           uint8_t y,
+                           uint8_t width,
+                           uint8_t height);
+
 void BSP_SSD1315_DisplayOn(void);
 
 void BSP_SSD1315_DisplayOff(void);

@@ -47,7 +47,7 @@ static void _Render(void)
     uint8_t visible    = FileManager_GetVisibleCount();
     uint8_t cursor_row = FileManager_GetCursorRow();
 
-    BSP_SSD1315_Clear();
+    BSP_SSD1315_ClearBuffer();
     for (uint8_t row = 0; row < visible; row++) {
         const WCHAR *name = FileManager_GetVisibleEntry(row);
         if (name == NULL) {
