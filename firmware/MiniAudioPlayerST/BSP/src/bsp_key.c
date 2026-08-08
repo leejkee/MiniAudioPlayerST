@@ -26,7 +26,7 @@ static const bsp_key_pin_t key_pins[KEY_COUNT] = {
 };
 
 /* 消抖上下文 ----------------------------------------------------------------*/
-static struct {
+static volatile struct {
     uint8_t stable_state;            /* 消抖后的稳定状态 (bitmap, 1=按下) */
     uint8_t debounce_cnt[KEY_COUNT]; /* 每个按键的消抖计数 */
     uint8_t edge_flags;              /* 边沿事件标记 (sticky, bit=1 表示有待消费事件) */
@@ -40,7 +40,17 @@ static struct {
   */
 void BSP_Key_Init(void)
 {
-    HAL_TIM_Base_Start_IT(&htim1);
+    uint8_t i;
+
+    key_ctx.stable_state = 0U;
+    key_ctx.edge_flags = 0U;
+    for (i = 0U; i < KEY_COUNT; i++) {
+        key_ctx.debounce_cnt[i] = 0U;
+    }
+
+    __HAL_TIM_SET_COUNTER(&htim1, 0U);
+    __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_UPDATE);
+    (void)HAL_TIM_Base_Start_IT(&htim1);
 }
 
 /**
