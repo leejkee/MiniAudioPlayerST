@@ -70,6 +70,8 @@
 #define SD_CMD_TIMEOUT       200    /* 命令响应超时    */
 #define SD_DATA_TIMEOUT      200    /* 数据令牌超时    */
 #define SD_WRITE_TIMEOUT     500    /* 写操作忙等待    */
+#define SD_INIT_RETRY_COUNT  3U     /* 完整初始化序列重试次数 */
+#define SD_INIT_RETRY_DELAY  100U   /* 每次初始化间隔 (ms) */
 
 /* 哑字节 (SPI 总线填充) 发送该字节让MCU继续产生SCK时序 */
 #define SD_DUMMY             0xFF
@@ -400,12 +402,7 @@ static uint32_t SD_SectorToAddr(uint32_t sector)
 
 /* ---- 初始化与生命周期 ---- */
 
-/**
-  * @brief  SD 卡初始化 (软件上下文 + 协议初始化)
-  * @retval BSP_SD_OK: 成功, state=READY
-  * @note   序列: 低速 → 80+脉冲 → CMD0 → CMD8 → ACMD41 → CMD58 → CMD16 → CSD → 高速
-  */
-bsp_sd_status_t BSP_SD_Init(void)
+static bsp_sd_status_t SD_InitAttempt(void)
 {
     uint8_t  r1;
     uint8_t  buf[4];
@@ -427,11 +424,21 @@ bsp_sd_status_t BSP_SD_Init(void)
         SD_SPI_RW(SD_DUMMY);
     }
 
-    /* ---- CMD0: 复位 (重试直到进入 IDLE 态) ---- */
+    /* ---- CMD0: 复位 (在超时内重试进入 IDLE 态) ---- */
+    start = HAL_GetTick();
     do {
         r1 = SD_SendCmd(CMD0, 0, 0x95);
         CS_Release();
-    } while (r1 != R1_IDLE);
+        if (r1 == R1_IDLE) {
+            break;
+        }
+        HAL_Delay(10U);
+    } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
+
+    if (r1 != R1_IDLE) {
+        sd.state = BSP_SD_STATE_ERROR;
+        return BSP_SD_ERR_INIT;
+    }
 
     /* ---- CMD8: 接口条件检测 (区分 V2/V1) ---- */
     r1 = SD_SendCmd(CMD8, 0x1AA, 0x87);
@@ -541,6 +548,34 @@ bsp_sd_status_t BSP_SD_Init(void)
 
     sd.state = BSP_SD_STATE_READY;
     return BSP_SD_OK;
+}
+
+/**
+  * @brief  SD 卡初始化 (软件上下文 + 协议初始化)
+  * @retval BSP_SD_OK: 成功, state=READY
+  * @note   完整初始化最多尝试 3 次。每次都从低速、80+ 启动时钟和
+  *         CMD0 开始，避免复用上一次失败的卡片状态。
+  */
+bsp_sd_status_t BSP_SD_Init(void)
+{
+    bsp_sd_status_t status = BSP_SD_ERR_INIT;
+    uint8_t attempt;
+
+    for (attempt = 0U; attempt < SD_INIT_RETRY_COUNT; attempt++) {
+        status = SD_InitAttempt();
+        if (status == BSP_SD_OK) {
+            return BSP_SD_OK;
+        }
+
+        CS_Release();
+        SD_SetSpeed(1U);
+        if (attempt + 1U < SD_INIT_RETRY_COUNT) {
+            HAL_Delay(SD_INIT_RETRY_DELAY);
+        }
+    }
+
+    sd.state = BSP_SD_STATE_ERROR;
+    return status;
 }
 
 /**

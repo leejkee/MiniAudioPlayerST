@@ -72,6 +72,7 @@ typedef struct
  * - CS 引脚默认高电平
  * - SPI 低速 → CMD0 → CMD8 → ACMD41 → CMD58 → CMD16 → CSD解析 → SPI高速
  * - 识别卡类型 (SDSC/SDHC/SDXC)
+ * - 单次失败时释放总线并重新执行完整序列，最多尝试 3 次
  *
  * 成功后 state=READY, 返回 BSP_SD_OK。
  * 失败返回具体错误码。
