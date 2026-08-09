@@ -158,6 +158,8 @@ STM32CubeMX 和 Keil MDK-ARM 只在重新生成 CubeMX 代码或使用 Keil/ARMC
 
 ### VS Code 补全与跳转
 
+> 无论您是否选择使用gcc工具链，我们推荐您安装arm-gcc编译器到您的机器上，这样您可以直接使用我们提供的CMake来生成 `compile_command.json`，这样您可以直接通过 `vscode` + `clangd插件` 获得本项目代码的lsp 补全、跳转支持
+
 在仓库根目录执行：
 
 ```bash
@@ -170,7 +172,7 @@ CMake 会生成：
 build/debug/compile_commands.json
 ```
 
-clangd 通过仓库中的 `.clangd` 自动使用该数据库。仅使用 Keil 构建固件的开发者也需要执行这一步，但不要求使用 GCC 生成的 ELF 作为最终固件。
+clangd 通过仓库中的 `.clangd` 自动使用该数据库。
 
 当编译宏、头文件目录或源文件列表变化时，重新执行 `cmake --preset debug`。普通 `.c/.h` 内容修改不需要重新配置，clangd 会自动更新索引。
 
