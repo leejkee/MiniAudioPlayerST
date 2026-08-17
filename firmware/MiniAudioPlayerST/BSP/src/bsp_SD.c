@@ -59,6 +59,10 @@
 #define DATA_RESP_CRC_ERR    0x0B  /* CRC 错误       */
 #define DATA_RESP_WRITE_ERR  0x0D  /* 写入错误       */
 
+/* DMA数据快大小和DMA传输超时 */
+#define SD_BLOCK_SIZE 512U  /* 512B 每个DMA数据块 */
+#define SD_DMA_TIMEOUT 200U /* 等待一个BLOCK传输完成*/
+
 /* ACMD41 参数 */
 #define ACMD41_HCS           0x40000000U  /* HCS 位 (Host Capacity Support) */
 
@@ -84,6 +88,28 @@
 /* ========================================================================= */
 /*                            内部驱动状态                                     */
 /* ========================================================================= */
+
+/*
+ SD的DMA状态转换
+ IDLE -> BUSY -> DONE
+           └-> ERROR
+*/
+typedef enum
+{
+    SD_DMA_STATE_IDLE = 0,
+    SD_DMA_STATE_BUSY,
+    SD_DMA_STATE_DONE,
+    SD_DMA_STATE_ERROR
+} sd_dma_state_t;
+
+/*
+ * DMA TX 使用固定地址反复发送该字节。
+ * 不能使用函数局部变量，因为 DMA 启动后函数会先返回。
+ */
+static uint8_t sd_dma_dummy = SD_DUMMY;
+
+// 需要在DMA中断中修改值，所以需要保持 volatile，要求每次都去读取该值
+static volatile sd_dma_state_t sd_dma_state = SD_DMA_STATE_IDLE;
 
 static struct {
     bsp_sd_state_t      state;         /* 驱动状态              */
@@ -263,6 +289,118 @@ token_found:
     CS_Release();
     return 0;
 }
+
+/**
+    * @brief  使用 DMA 接收一个 512 字节 SD Payload
+    *
+    * 流程：
+    * CS Low
+    * → 阻塞等待 0xFE
+    * → SPI1 TX/RX DMA 搬运 512B
+    * → 阻塞读取 2B CRC
+    * → CS High + dummy
+    */
+  static bsp_sd_status_t SD_ReceiveBlockDMA(uint8_t *data)
+  {
+      uint32_t start;
+      HAL_StatusTypeDef hal_status;
+      uint8_t token_found = 0U;
+
+      if (data == NULL) {
+          return BSP_SD_ERR_PARAM;
+      }
+
+      if (sd_dma_state == SD_DMA_STATE_BUSY) {
+          return BSP_SD_ERR_RW;
+      }
+
+      CS_Select();
+
+      /*
+       * Token 属于协议控制信息，继续使用阻塞 SPI。
+       */
+      start = HAL_GetTick();
+
+      while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT) {
+          if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK) {
+            token_found = 1U;
+              break;
+          }
+      }
+
+      if (token_found == 0U) {
+          CS_Release();
+          return BSP_SD_ERR_TIMEOUT;
+      }
+
+      /*
+       * 必须在启动 DMA 前设置 BUSY。
+       * 极端情况下 DMA 可能很快完成，回调需要观察到 BUSY。
+       */
+      sd_dma_state = SD_DMA_STATE_BUSY;
+
+      hal_status = BSP_SPI_TxRx_DMA(&sd_hw.spi,
+                                    &sd_dma_dummy,
+                                    data,
+                                    SD_BLOCK_SIZE);
+
+      if (hal_status != HAL_OK) {
+          sd_dma_state = SD_DMA_STATE_IDLE;
+          CS_Release();
+          return BSP_SD_ERR_RW;
+      }
+
+      /*
+       * FatFS 的 disk_read()/f_read() 是同步接口，
+       * 因此 BSP 内部等待 DMA 完成。
+       *
+       * 等待期间 CPU 不负责逐字节搬运，DMA IRQ 可以正常响应。
+       */
+      start = HAL_GetTick();
+
+      while (sd_dma_state == SD_DMA_STATE_BUSY) {
+          if ((HAL_GetTick() - start) >= SD_DMA_TIMEOUT) {
+              /*
+               * 先修改状态，让可能迟到的完成回调失效，
+               * 再停止 DMA。
+               */
+              sd_dma_state = SD_DMA_STATE_ERROR;
+              (void)BSP_SPI_DMAStop(&sd_hw.spi);
+
+              /*
+               * DMA 已停止、SPI 恢复空闲后，才能使用阻塞 SPI
+               * 发送释放总线所需的 dummy 字节。
+               */
+              CS_Release();
+              sd_dma_state = SD_DMA_STATE_IDLE;
+              return BSP_SD_ERR_TIMEOUT;
+          }
+      }
+
+      if (sd_dma_state != SD_DMA_STATE_DONE) {
+          /*
+           * DMA 错误回调已将状态设置为 ERROR。
+           * 调用 Stop 确保 TX/RX 两个通道都被关闭。
+           */
+          (void)BSP_SPI_DMAStop(&sd_hw.spi);
+          CS_Release();
+          sd_dma_state = SD_DMA_STATE_IDLE;
+          return BSP_SD_ERR_RW;
+      }
+
+      /*
+       * 回调发生时 HAL 已完成 SPI DMA 收尾，
+       * 此后可以重新使用阻塞接口。
+       */
+      sd_dma_state = SD_DMA_STATE_IDLE;
+
+      /* CRC 暂不校验，仅从总线上取走。 */
+      (void)SD_SPI_RW(SD_DUMMY);
+      (void)SD_SPI_RW(SD_DUMMY);
+
+      CS_Release();
+      return BSP_SD_OK;
+  }
 
 /* ========================================================================= */
 /*                      数据发送                                              */
@@ -561,6 +699,13 @@ bsp_sd_status_t BSP_SD_Init(void)
     bsp_sd_status_t status = BSP_SD_ERR_INIT;
     uint8_t attempt;
 
+    if (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
+        (void)BSP_SPI_DMAStop(&sd_hw.spi);
+    }
+
+    sd_dma_state = SD_DMA_STATE_IDLE;
+
     for (attempt = 0U; attempt < SD_INIT_RETRY_COUNT; attempt++) {
         status = SD_InitAttempt();
         if (status == BSP_SD_OK) {
@@ -583,6 +728,16 @@ bsp_sd_status_t BSP_SD_Init(void)
   */
 void BSP_SD_DeInit(void)
 {
+    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+        (void)BSP_SPI_DMAStop(&sd_hw.spi);
+    }
+
+    sd_dma_state = SD_DMA_STATE_IDLE;
+
+    /*
+     * 必须在停止 DMA 后才能执行阻塞 SPI，
+     * 因为 CS_Release() 内部还会发送一个 dummy 字节。
+     */
     CS_Release();
     sd.state = BSP_SD_STATE_UNINIT;
 }
@@ -641,6 +796,7 @@ bsp_sd_status_t BSP_SD_ReadBlocks(uint32_t sector, uint8_t *buffer, uint32_t cou
 {
     uint8_t  r1;
     uint32_t addr;
+    bsp_sd_status_t status;
 
     if (buffer == NULL || count == 0)   return BSP_SD_ERR_PARAM;
     if (sd.state != BSP_SD_STATE_READY) return BSP_SD_ERR_NOT_READY;
@@ -654,7 +810,7 @@ bsp_sd_status_t BSP_SD_ReadBlocks(uint32_t sector, uint8_t *buffer, uint32_t cou
             CS_Release();
             return BSP_SD_ERR_RW;
         }
-        return SD_ReceiveData(buffer, 512) ? BSP_SD_ERR_TIMEOUT : BSP_SD_OK;
+        return SD_ReceiveBlockDMA(buffer);
     } else {
         /* ---- 多块读 CMD18 ---- */
         r1 = SD_SendCmd(CMD18, addr, 0x01);
@@ -668,15 +824,18 @@ bsp_sd_status_t BSP_SD_ReadBlocks(uint32_t sector, uint8_t *buffer, uint32_t cou
              * SD_ReceiveData 内部: CS_Low → 等 0xFE → 读 512B → CS_Release
              * 多块读间 CS 的 toggling 与参考实现一致。
              */
-            if (SD_ReceiveData(buffer + (i * 512), 512) != 0) {
-                SD_SendCmd(CMD12, 0, 0x01);
+
+            status = SD_ReceiveBlockDMA(buffer + (i * SD_BLOCK_SIZE));
+            if (status != BSP_SD_OK)
+            {
+                (void) SD_SendCmd(CMD12, 0U, 0x01U);
                 CS_Release();
-                return BSP_SD_ERR_TIMEOUT;
+                return status;
             }
         }
 
         /* CMD12 停止多块传输 */
-        SD_SendCmd(CMD12, 0, 0x01);
+        (void)SD_SendCmd(CMD12, 0, 0x01);
         CS_Release();
         return BSP_SD_OK;
     }
@@ -763,4 +922,18 @@ bsp_sd_status_t BSP_SD_Sync(void)
     SD_SPI_RW(SD_DUMMY);
     SD_SPI_RW(SD_DUMMY);
     return BSP_SD_OK;
+}
+
+void BSP_SD_SPI_TxRxCpltCallback(void)
+{
+    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+        sd_dma_state = SD_DMA_STATE_DONE;
+    }
+}
+
+void BSP_SD_SPI_ErrorCallback(void)
+{
+    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+        sd_dma_state = SD_DMA_STATE_ERROR;
+    }
 }

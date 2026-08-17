@@ -90,6 +90,7 @@ add_library(bsp OBJECT
     "${FIRMWARE_ROOT}/BSP/src/bsp_i2c_scanner.c"
     "${FIRMWARE_ROOT}/BSP/src/bsp_key.c"
     "${FIRMWARE_ROOT}/BSP/src/bsp_spi.c"
+    "${FIRMWARE_ROOT}/BSP/src/bsp_spi_event.c"
     "${FIRMWARE_ROOT}/BSP/src/bsp_ssd1315.c"
     "${FIRMWARE_ROOT}/BSP/src/bsp_uart.c"
     "${FIRMWARE_ROOT}/BSP/src/bsp_vs1003.c"
@@ -125,6 +126,7 @@ add_library(core OBJECT
     "${FIRMWARE_ROOT}/Core/Src/system_stm32f0xx.c"
     "${FIRMWARE_ROOT}/Core/Src/tim.c"
     "${FIRMWARE_ROOT}/Core/Src/usart.c"
+    "${FIRMWARE_ROOT}/Core/Src/dma.c"
 )
 target_include_directories(core PUBLIC "${FIRMWARE_ROOT}/Core/Inc")
 target_link_libraries(core PUBLIC app bsp fatfs stm32_hal project_options)
@@ -140,6 +142,7 @@ add_library(app_tests OBJECT
     "${FIRMWARE_ROOT}/App/test/src/ssd1315_font_test.c"
     "${FIRMWARE_ROOT}/App/test/src/ssd1315_test.c"
     "${FIRMWARE_ROOT}/App/test/src/vs1003_test.c"
+    "${FIRMWARE_ROOT}/App/test/src/test_main.c"
 )
 target_include_directories(app_tests PUBLIC "${FIRMWARE_ROOT}/App/test/include")
 target_link_libraries(app_tests PUBLIC app bsp fatfs project_options)

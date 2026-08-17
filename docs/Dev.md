@@ -65,8 +65,10 @@ graph TB
     subgraph PERIPH[" MCU 外设层 Peripheral "]
         SPI1["SPI1 外设<br/>──────────────<br/>PA5 SCK / PA6 MISO<br/>PA7 MOSI / PA4 CS<br/>Full-Duplex Master<br/>初始化 375kbps<br/>运行 ~12Mbps"]
         SPI2["SPI2 外设<br/>──────────────<br/>PB13 SCK / PB14 MISO<br/>PB15 MOSI<br/>XCS: PB11 / XDCS: PB12<br/>Full-Duplex Master<br/>运行 ≤6Mbps"]
-        DMA_CH2["DMA1 Channel 2<br/>──────────────<br/>Memory → SPI2_TX<br/>Normal 模式 (非 Circular)<br/>Byte × Byte<br/>每次传输: 32 字节"]
-        EXTI10["EXTI10 中断线<br/>──────────────<br/>DREQ: PB10<br/>上升沿触发<br/>抢占优先级: 0 (最高)"]
+        DMA_SD_RX["DMA1 Channel 2<br/>──────────────<br/>SPI1_RX → Memory<br/>Normal / Byte<br/>每块传输: 512 字节"]
+        DMA_SD_TX["DMA1 Channel 3<br/>──────────────<br/>Memory → SPI1_TX<br/>固定发送 dummy 0xFF<br/>Memory Inc Disable"]
+        DMA_VS_TX["DMA1 Channel 5<br/>──────────────<br/>Memory → SPI2_TX<br/>Normal / Byte<br/>每次传输: ≤32 字节"]
+        EXTI10["EXTI Line 10 / EXTI4_15 IRQ<br/>──────────────<br/>DREQ: PB10<br/>上升沿触发，发送前复查高电平<br/>抢占优先级: 0 (最高)"]
     end
 
     %% ═══════════════════════════════════════════════════════════
@@ -101,8 +103,10 @@ graph TB
 
     %% ── 链路 A: SD 卡 → 文件系统 → 应用 (文件读取) ──
     SD      -->|"CMD17 读扇区<br/>数据令牌 + 512B 块 + CRC16"| SPI1
-    SPI1    -->|"SPI 全双工 8-bit 帧<br/>TX dummy 0xFF → RX 数据"| BSP_SPI
-    BSP_SPI -->|"uint8_t 单字节/多字节<br/>收发原语 (阻塞)"| BSP_SD
+    SPI1    -->|"RX Payload"| DMA_SD_RX
+    DMA_SD_TX -->|"TX dummy 0xFF 产生 SCK"| SPI1
+    DMA_SD_RX -->|"512B 扇区 Payload"| BSP_SPI
+    BSP_SPI -->|"命令/响应/令牌/CRC 阻塞<br/>512B Payload 使用 DMA"| BSP_SD
     BSP_SD  -->|"扇区缓冲区<br/>uint8_t buf[512]<br/>DSTATUS / DRESULT"| DISKIO
     DISKIO  -->|"512B 磁盘扇区<br/>LBA 逻辑块寻址"| FATFS
     FATFS   -->|"文件字节流<br/>UINT bytes_read<br/>可变大小 (如 512~4096B)"| FILE_BUF
@@ -110,8 +114,8 @@ graph TB
 
     %% ── 链路 B: 双缓冲 → DMA → VS1003 → 音频 (音频输出) ──
     AUDIO   -->|"切缓冲指针<br/>填 buf_A 时用 buf_B 发送<br/>每次 32 字节"| PCM_PP
-    PCM_PP  -->|"设置 DMA 源地址<br/>Memory → Peripheral<br/>32 字节 × 1 次"| DMA_CH2
-    DMA_CH2 -->|"逐字节写入 SPI2 TXDR<br/>DMA 完成中断标记<br/>当前缓冲块可用"| SPI2
+    PCM_PP  -->|"设置 DMA 源地址<br/>Memory → Peripheral<br/>最多 32 字节 × 1 次"| DMA_VS_TX
+    DMA_VS_TX -->|"逐字节写入 SPI2 TXDR<br/>DMA 完成中断标记<br/>当前缓冲块可用"| SPI2
     SPI2    -->|"XDCS 拉低选通<br/>SPI 模式 0 (CPOL=0 CPHA=0)<br/>8-bit 数据帧"| VS1003
     VS1003  -->|"立体声 DAC 解码<br/>18-bit sigma-delta<br/>模拟音频"| OUT
 
@@ -120,7 +124,7 @@ graph TB
     %% ============================================================
 
     %% DREQ 流控反馈回路
-    VS1003  -.->|"<b>DREQ 上升沿</b><br/>芯片 FIFO ≥ 32B 空闲<br/>可接收下一帧数据"| EXTI10
+    VS1003  -.->|"<b>DREQ 上升沿/高电平</b><br/>芯片 FIFO ≥ 32B 空闲<br/>可接收下一帧数据"| EXTI10
     EXTI10  -.->|"xSemaphoreGiveFromISR()<br/>释放计数信号量<br/>唤醒 audioTask"| AUDIO
     MAIN    -.->|"播放/暂停/切歌<br/>状态变更通知"| AUDIO
 
@@ -138,7 +142,8 @@ graph TB
 > | FatFS 文件 API | 文件字节流 | 可变大小 (`UINT`) | `ff.c` |
 > | 应用文件缓冲 | 原始 MP3/WAV 字节 | 可变大小 (`f_read` 指定) | `audioTask` |
 > | PCM 双缓冲 | 待发送音频帧 | **32 字节** × 2 (Ping-Pong) | `audioTask` |
-> | DMA 传输 | Memory → Peripheral 逐字节搬运 | 32 字节/次 (Normal 模式) | DMA1 CH2 |
+> | SD Payload DMA | Peripheral ↔ Memory 全双工搬运 | 512 字节/块 (Normal 模式) | DMA1 CH2 RX + CH3 TX dummy |
+> | VS1003 SDI DMA | Memory → Peripheral 逐字节搬运 | ≤32 字节/次 (Normal 模式) | DMA1 CH5 |
 > | SPI2 → VS1003 | SPI 数据帧 (XDCS 选通) | 32 字节/帧 | SPI2 外设 |
 > | VS1003 输出 | 解码后的模拟音频 | 连续信号 | VS1003 DAC |
 
@@ -151,7 +156,8 @@ graph TB
 > | FatFS 适配层 | `user_diskio.c` | 将 FatFS 的 `disk_read/disk_write/disk_ioctl` 等标准接口映射到 `BSP_SD_ReadBlocks/BSP_SD_WriteBlocks`。处理扇区地址转换、返回值适配。 |
 > | FatFS 文件系统 | `ff.c` | 实现 FAT32 文件系统逻辑：目录遍历、文件打开/关闭、流式读取 (`f_read`)、文件定位 (`f_lseek`)、长文件名 (LFN UTF-16LE) 支持。 |
 > | 应用层音频管理 | `audioTask` | DREQ 信号量驱动的音频数据泵：等待 DREQ → 从文件读数据到文件缓冲 → 切分 32B 块填双缓冲 → 启动 DMA 发送。 |
-> | DMA + SPI2 发送 | DMA1 CH2 / SPI2 | 硬件自动将双缓冲中的 32 字节逐字节搬到 SPI2 TX 寄存器，发送给 VS1003。Normal 模式，每次由软件手动启动。 |
+> | DMA + SPI1 接收 | DMA1 CH2/CH3 / SPI1 | CH2 将 SD 卡的 512 字节 Payload 搬入内存；CH3 从固定地址重复发送 `0xFF` 产生接收时钟。命令、响应、数据令牌和 CRC 仍使用阻塞 SPI。 |
+> | DMA + SPI2 发送 | DMA1 CH5 / SPI2 | 硬件自动将待发送的最多 32 字节数据逐字节搬到 SPI2 TX 寄存器，发送给 VS1003。Normal 模式，每次由软件手动启动。 |
 
 | 标签名 | 引脚 | 模式 |
 |--------|------|------|
@@ -303,23 +309,23 @@ graph TB
 
 | DMA 通道 | 外设 | 方向 | 模式 | 数据宽度 |
 |----------|------|------|------|---------|
-| DMA1 Channel 2 | SPI2_TX | Memory to Peripheral | **Normal**（单次，每次手动启动） | Byte × Byte |
-| DMA1 Channel 3 | SPI1_RX | Peripheral to Memory | Normal | Byte × Byte |
+| DMA1 Channel 2 | SPI1_RX | Peripheral to Memory，Memory Inc Enable | **Normal**（每个 Payload 手动启动） | Byte × Byte |
+| DMA1 Channel 3 | SPI1_TX | Memory to Peripheral，Memory Inc Disable | **Normal**（固定发送 dummy `0xFF`） | Byte × Byte |
+| DMA1 Channel 5 | SPI2_TX | Memory to Peripheral，Memory Inc Enable | **Normal**（每次手动启动） | Byte × Byte |
 
-> **关键**：SPI2 TX 的 DMA 配置为 **Normal 模式**，不是 Circular。每次 DREQ 外部中断触发后，由任务手动启动一次 32 字节 DMA 传输，与 PRD 9.5 节方案一致。
+> **关键**：三个 DMA 通道都配置为 **Normal 模式**，不是 Circular。SPI1 接收 512 字节 Payload 时，Channel 2 负责接收，Channel 3 从固定内存地址重复发送 dummy `0xFF` 以产生 SCK；因此 SPI1 的命令和其他普通发送仍使用阻塞接口。SPI2 每次最多发送 32 字节，DREQ 上升沿用于通知，启动 DMA 前以及 DMA 完成后还必须复查 DREQ 是否仍为高电平，不能只依赖新的上升沿。
 
 ### 1.6 NVIC 中断优先级
 
-Cortex-M0 仅支持 2 位抢占优先级（即 0~3）。STM32F0 默认使用 NVIC_PRIORITYGROUP_2（2 抢占 + 2 子）。
+Cortex-M0 实现 2 位中断优先级，因此本工程使用 0~3 四级优先级；数值越小优先级越高。
 
 | 中断 | 抢占优先级 | 子优先级 | 说明 |
 |------|-----------|---------|------|
-| EXTI10 (DREQ) | **0** | 0 | 最高优先级 — 音频流控 |
-| DMA1 Channel 2 (SPI2 TX 完成) | 1 | 0 | 音频数据 DMA 完成 |
-| SPI1 / SPI2 IRQ | 2 | 0 | SPI 通信中断 |
-| EXTI8..11 (按键) | 3 | 0 | 按键中断 |
-| I2C1 Event | 4 | 0 | I2C 事件 |
-| SysTick | 5 | 0 | FreeRTOS 心跳 |
+| EXTI4_15（EXTI Line 10，VS1003 DREQ） | **0** | 0 | 最高优先级 — 音频流控 |
+| DMA1 Channel4_5_6_7（SPI2 TX 完成） | 1 | 0 | VS1003 音频数据 DMA 完成 |
+| DMA1 Channel2_3（SPI1 RX/TX 完成） | 2 | 0 | SD Payload DMA 完成 |
+| TIM1_BRK_UP_TRG_COM | 3 | 0 | 10ms 按键扫描 |
+| SysTick | 3 | 0 | HAL/系统时基 |
 
 ### 1.7 时钟树配置
 

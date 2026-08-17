@@ -132,6 +132,17 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
  */
 bsp_sd_status_t BSP_SD_Sync(void);
 
+/*
+ * SPI DMA 事件通知。
+ *
+ * 供统一的 HAL SPI 回调分发层调用，不属于上层应用接口。
+ */
+void BSP_SD_SPI_TxRxCpltCallback(void);
+
+void BSP_SD_SPI_ErrorCallback(void);
+
+
+
 #ifdef __cplusplus
 }
 #endif

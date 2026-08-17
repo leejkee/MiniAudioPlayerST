@@ -84,11 +84,74 @@ HAL_StatusTypeDef BSP_SPI_Rx(const bsp_spi_context_t *context,
     return HAL_SPI_Receive(context->hspi, buf, len, timeout);
 }
 
+HAL_StatusTypeDef BSP_SPI_Tx_DMA(
+      const bsp_spi_context_t *context,
+      const uint8_t *buf,
+      uint16_t len)
+  {
+      if (!BSP_SPI_IsValid(context)
+          || (context->hspi->hdmatx == NULL)
+          || (buf == NULL)
+          || (len == 0U)) {
+          return HAL_ERROR;
+      }
+
+      return HAL_SPI_Transmit_DMA(context->hspi,
+                                  (uint8_t *)buf,
+                                  len);
+  }
+
+  HAL_StatusTypeDef BSP_SPI_TxRx_DMA(
+      const bsp_spi_context_t *context,
+      const uint8_t *tx_buf,
+      uint8_t *rx_buf,
+      uint16_t len)
+  {
+      if (!BSP_SPI_IsValid(context)
+          || (context->hspi->hdmatx == NULL)
+          || (context->hspi->hdmarx == NULL)
+          || (tx_buf == NULL)
+          || (rx_buf == NULL)
+          || (len == 0U)) {
+          return HAL_ERROR;
+      }
+
+      return HAL_SPI_TransmitReceive_DMA(context->hspi,
+                                         (uint8_t *)tx_buf,
+                                         rx_buf,
+                                         len);
+  }
+
+  HAL_StatusTypeDef BSP_SPI_DMAStop(
+      const bsp_spi_context_t *context)
+  {
+      if (!BSP_SPI_IsValid(context)) {
+          return HAL_ERROR;
+      }
+
+      return HAL_SPI_DMAStop(context->hspi);
+  }
+
+  HAL_SPI_StateTypeDef BSP_SPI_GetState(
+      const bsp_spi_context_t *context)
+  {
+      if (!BSP_SPI_IsValid(context)) {
+          return HAL_SPI_STATE_RESET;
+      }
+
+      return HAL_SPI_GetState(context->hspi);
+  }
+
 HAL_StatusTypeDef BSP_SPI_SetPrescaler(const bsp_spi_context_t *context,
                                        uint32_t prescaler)
 {
     if (!BSP_SPI_IsValid(context)) {
         return HAL_ERROR;
+    }
+
+    if (HAL_SPI_GetState(context->hspi) != HAL_SPI_STATE_READY)
+    {
+        return HAL_BUSY;
     }
 
     if (context->hspi->Init.BaudRatePrescaler == prescaler) {

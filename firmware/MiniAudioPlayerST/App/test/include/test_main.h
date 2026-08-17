@@ -11,9 +11,9 @@ extern "C" {
 
 
 /* Test Defination Begin */
-void Test_Init();
+void Test_Init(void);
 
-void Test_Run();
+void Test_Run(void);
 
 /* Test Defination End */
 

@@ -328,10 +328,10 @@ CH376S 模块
 | 外设 | MCU 接口 | 引脚 | DMA 通道 | 中断优先级 | 说明 |
 |------|---------|------|---------|-----------|------|
 | OLED | I2C1    | SDA/SCL PB7/PB6 | - | | OLED 屏幕显示，仅在改动时刷新一次 |
-| VS1003  | SPI2 | MOSI/MISO/SCK/CS PB15/PB14/PB13/PB11, PB12 | |  | 数据和命令共享 SPI |
-| VS1003 DREQ | GPIO 输入中断 | PB10 | - | | 流控信号，高电平表示可接收数据 |
-| SD 卡 | SPI1 | MOSI/MISO/SCK/CS PA7/PA6/PA5/PA4 | | | 文件读取 |
-| 按键 | GPIO | PA9/PA10/PB0/PB1 | - |  | Menu/OK/L/R 按键 |
+| VS1003  | SPI2 | MOSI/MISO/SCK/CS PB15/PB14/PB13/PB11, PB12 | DMA1 Channel 5（TX） | 1 | SCI 命令阻塞传输，SDI 音频数据使用 DMA |
+| VS1003 DREQ | GPIO 输入中断 | PB10 | - | 0 | EXTI Line 10，共享 `EXTI4_15_IRQn`；高电平表示可接收数据 |
+| SD 卡 | SPI1 | MOSI/MISO/SCK/CS PA7/PA6/PA5/PA4 | DMA1 Channel 2（RX）+ Channel 3（TX dummy） | 2 | 命令/响应阻塞传输，512B Payload 使用 DMA |
+| 按键 | GPIO | PA9/PA10/PB0/PB1 | - | 3 | TIM1 每 10ms 扫描 Menu/OK/L/R 按键 |
 
 ### 9.3 VS1003 通信协议要点
 
