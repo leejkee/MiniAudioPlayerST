@@ -12,7 +12,6 @@
 #include "sd_card.h"
 #include "bsp_ssd1315.h"
 #include "bsp_config.h"
-#include "ui_render.h"
 #include "ui_file_page.h"
 
 /* -------------------------------------------------------------------------- */
@@ -48,7 +47,8 @@ void SD_OLED_Test_Init(void)
                      SD_CountFiles(music_path));
 
     /* 4. 切换到文件列表页面 (Page_File.on_enter → FileManager_Init → _Render) */
-    UI_Render_SwitchPage(&Page_File);
+    // UI_Render_SwitchPage(&Page_File);
+    Page_File.on_enter();
     BSP_DEBUG_PRINTF("[INIT] Switched to File Page.\r\n");
 }
 
@@ -57,5 +57,9 @@ void SD_OLED_Test_Init(void)
 /* -------------------------------------------------------------------------- */
 void SD_OLED_Test_Run(void)
 {
-    UI_Render_Tick();
+    for (bsp_key_id_t id = 0; id < KEY_COUNT; id++) {
+        if (BSP_Key_GetEvent(id) == KEY_EDGE_RELEASE) {
+           Page_File.on_key(id);
+        }
+    }
 }
