@@ -9,9 +9,9 @@ extern "C" {
 
 typedef struct
 {
-    void (*on_enter)(void);
-    void (*on_key)(bsp_key_id_t key);
-    void (*on_tick)(void);
+    void (*on_enter)(void); // 切入渲染
+    void (*on_key)(bsp_key_id_t key); // 按键事件处理
+    void (*on_tick)(void); // 循环体
 }PageHandler_t;
 
 
