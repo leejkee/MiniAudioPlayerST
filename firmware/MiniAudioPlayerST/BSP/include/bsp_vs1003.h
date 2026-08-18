@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    bsp_vs1003.h
   * @brief   VS1003 音频解码器 BSP 驱动
-  * @note    当前版本使用阻塞式 SPI，不包含 DMA 播放路径。
+  * @note    SCI 使用阻塞式 SPI，SDI 音频流使用 DREQ + DMA 双缓冲。
   ******************************************************************************
   */
 
@@ -46,6 +46,7 @@ extern "C" {
 
 /* SDI 每次 DREQ 有效后保证可发送的最大字节数 -------------------------------*/
 #define BSP_VS1003_SDI_CHUNK_SIZE     32U
+#define BSP_VS1003_STREAM_BUFFER_SIZE 512U
 
 typedef enum
 {
@@ -54,7 +55,8 @@ typedef enum
     BSP_VS1003_ERR_SPI,
     BSP_VS1003_ERR_TIMEOUT,
     BSP_VS1003_ERR_VERIFY,
-    BSP_VS1003_ERR_NOT_READY
+    BSP_VS1003_ERR_NOT_READY,
+    BSP_VS1003_ERR_BUSY
 } bsp_vs1003_status_t;
 
 typedef enum
@@ -115,11 +117,55 @@ bsp_vs1003_status_t BSP_VS1003_ReadRegister(uint8_t address,
 /**
   * @brief  阻塞发送音频数据
   * @param  timeout_ms 每次等待 DREQ 的最大时间
-  * @note   数据按不超过 32 字节分块发送，每块发送前等待 DREQ。
+  * @note   数据按不超过 32 字节分块发送，每块发送前等待 DREQ；
+  *         仅用于测试或兼容路径，异步流非空时返回 BUSY。
   */
 bsp_vs1003_status_t BSP_VS1003_SendData(const uint8_t *data,
                                          uint16_t length,
                                          uint32_t timeout_ms);
+
+/**
+  * @brief  获取一个空闲的流写缓冲区
+  * @note   成功后调用方独占该缓冲区，必须 Commit 或 Cancel。
+  * @retval 1=成功，0=当前两个缓冲区都不可写
+  */
+uint8_t BSP_VS1003_GetWriteBuffer(uint8_t **buffer, uint16_t *capacity);
+
+/**
+  * @brief  提交最近一次获取的写缓冲区
+  * @note   BSP 随后按 DREQ 流控将数据切成不超过 32 字节的 DMA 事务。
+  */
+bsp_vs1003_status_t BSP_VS1003_CommitBuffer(uint16_t size);
+
+/**
+  * @brief  放弃最近一次获取但尚未提交的写缓冲区
+  */
+void BSP_VS1003_CancelWriteBuffer(void);
+
+/**
+  * @brief  中止当前流并释放双缓冲区
+  */
+void BSP_VS1003_AbortStream(void);
+
+/**
+  * @brief  暂停启动新的 DMA，并等待当前 DMA 事务完成
+  */
+bsp_vs1003_status_t BSP_VS1003_PauseStream(uint32_t timeout_ms);
+
+/**
+  * @brief  恢复异步流发送
+  */
+void BSP_VS1003_ResumeStream(void);
+
+/**
+  * @brief  查询所有已提交数据是否均已完成发送
+  */
+uint8_t BSP_VS1003_IsStreamIdle(void);
+
+/**
+  * @brief  获取当前流已经由 DMA 完成发送的字节数
+  */
+uint32_t BSP_VS1003_GetStreamTransferredBytes(void);
 
 /**
   * @brief  发送零字节以清理简单播放流水线
@@ -174,6 +220,11 @@ bsp_vs1003_state_t BSP_VS1003_GetState(void);
   * @retval 1=存在有效详情，0=最近一次校验未发生读回不匹配
   */
 uint8_t BSP_VS1003_GetLastVerifyDiag(bsp_vs1003_verify_diag_t *diag);
+
+/* HAL 中断回调分发入口，仅供 BSP 内部事件分发文件调用。 */
+void BSP_VS1003_SPI_TxCpltCallback(void);
+void BSP_VS1003_SPI_ErrorCallback(void);
+void BSP_VS1003_DREQCallback(void);
 
 #ifdef __cplusplus
 }

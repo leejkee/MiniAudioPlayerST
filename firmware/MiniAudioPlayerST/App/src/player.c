@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    player.c
   * @brief   音频播放器应用层状态机实现
-  * @note    FatFS 每次读取 512 字节，主循环每次最多发送 32 字节。
+  * @note    Player 只向 BSP 双缓冲填充文件数据，32 字节分块和 DREQ 流控由 BSP 处理。
   ******************************************************************************
   */
 
@@ -12,12 +12,11 @@
 #include "bsp_vs1003.h"
 #include <string.h>
 
-#define PLAYER_FILE_BUFFER_SIZE       512U
 #define PLAYER_PATH_CAPACITY          (_MAX_LFN + 16U)
 #define PLAYER_DEFAULT_VOLUME         70U
 #define PLAYER_VOLUME_ATTENUATION_MAX 80U
-#define PLAYER_DREQ_POLL_TIMEOUT_MS   1U
 #define PLAYER_END_FLUSH_BYTES        2048U
+#define PLAYER_STREAM_PAUSE_TIMEOUT_MS 10U
 #define PLAYER_ELAPSED_RETRY_DELAY_MS 1U
 #define PLAYER_ELAPSED_INVALID_MIN    0xFFF0U
 
@@ -36,11 +35,9 @@ typedef struct
     uint32_t current_index; // 当前歌曲索引
     uint32_t track_count; // 歌曲总数
     uint32_t file_size; // 文件大小
-    uint32_t file_position; // 已经发送到vs1003的数据量
+    uint32_t file_read_position; // 已经从当前音频 payload 读取并提交的数据量
 
-    uint8_t buffer[PLAYER_FILE_BUFFER_SIZE]; // 每次从sd卡最多读 512 byte
-    uint16_t buffer_size; // 本次实际读取到的数据量
-    uint16_t buffer_offset; // 这些数据已经向vs1003发送到什么位置
+    uint8_t metadata_buffer[BSP_VS1003_STREAM_BUFFER_SIZE];
     uint16_t end_flush_remaining; // 文件传输结束，需要发送多少 byte 到vs1003来作为补发数据，确保播放完毕
 
     // 单曲播放状态
@@ -63,10 +60,9 @@ static void Player_CloseFile(void)
 
 static void Player_ResetTrack(void)
 {
+    BSP_VS1003_AbortStream();
     Player_CloseFile();
-    player.buffer_size = 0U;
-    player.buffer_offset = 0U;
-    player.file_position = 0U;
+    player.file_read_position = 0U;
     player.end_pending = 0U;
     player.end_flush_remaining = 0U;
     player.duration_seconds = 0U;
@@ -77,8 +73,6 @@ static void Player_ResetTrack(void)
 static void Player_BeginEndOfTrack(void)
 {
     Player_CloseFile();
-    player.buffer_size = 0U;
-    player.buffer_offset = 0U;
     player.end_pending = 1U;
     player.end_flush_remaining = PLAYER_END_FLUSH_BYTES;
 }
@@ -121,9 +115,18 @@ static uint8_t Player_VolumeToAttenuation(uint8_t percent)
 static player_status_t Player_ApplyVolume(uint8_t percent)
 {
     uint8_t attenuation = Player_VolumeToAttenuation(percent);
+    uint8_t keep_paused = (player.state == PLAYER_STATE_PAUSED);
+    bsp_vs1003_status_t status;
 
-    return (BSP_VS1003_SetVolume(attenuation, attenuation)
-            == BSP_VS1003_OK)
+    status = BSP_VS1003_PauseStream(PLAYER_STREAM_PAUSE_TIMEOUT_MS);
+    if (status == BSP_VS1003_OK) {
+        status = BSP_VS1003_SetVolume(attenuation, attenuation);
+    }
+    if (keep_paused == 0U) {
+        BSP_VS1003_ResumeStream();
+    }
+
+    return (status == BSP_VS1003_OK)
         ? PLAYER_OK
         : PLAYER_ERR_DECODER;
 }
@@ -145,34 +148,40 @@ static void Player_HandleEndOfTrack(void)
 
 static void Player_PumpEndOfTrack(void)
 {
-    static const uint8_t zeros[BSP_VS1003_SDI_CHUNK_SIZE] = {0};
+    uint8_t *buffer;
+    uint16_t capacity;
     uint16_t chunk;
     bsp_vs1003_status_t decoder_status;
 
-    if (!BSP_VS1003_IsReady()) {
+    if (BSP_VS1003_GetState() != BSP_VS1003_STATE_READY) {
+        Player_SetError(PLAYER_ERR_DECODER);
         return;
     }
 
-    chunk = (player.end_flush_remaining > sizeof(zeros))
-        ? sizeof(zeros)
+    if (player.end_flush_remaining == 0U) {
+        if (BSP_VS1003_IsStreamIdle()) {
+            Player_HandleEndOfTrack();
+        }
+        return;
+    }
+
+    if (!BSP_VS1003_GetWriteBuffer(&buffer, &capacity)) {
+        return;
+    }
+
+    chunk = (player.end_flush_remaining > capacity)
+        ? capacity
         : player.end_flush_remaining;
+    memset(buffer, 0, chunk);
 
-    decoder_status = BSP_VS1003_SendData(
-        zeros,
-        chunk,
-        PLAYER_DREQ_POLL_TIMEOUT_MS);
-    if (decoder_status == BSP_VS1003_ERR_TIMEOUT) {
-        return;
-    }
+    decoder_status = BSP_VS1003_CommitBuffer(chunk);
     if (decoder_status != BSP_VS1003_OK) {
+        BSP_VS1003_CancelWriteBuffer();
         Player_SetError(PLAYER_ERR_DECODER);
         return;
     }
 
     player.end_flush_remaining -= chunk;
-    if (player.end_flush_remaining == 0U) {
-        Player_HandleEndOfTrack();
-    }
 }
 
 player_status_t Player_Init(void)
@@ -282,8 +291,8 @@ player_status_t Player_Play(uint32_t track_index)
     player.file_size = (uint32_t)f_size(&player.file);
     MP3_MetadataRead(&player.file,
                      player.file_size,
-                     player.buffer,
-                     (uint16_t)sizeof(player.buffer),
+                     player.metadata_buffer,
+                     (uint16_t)sizeof(player.metadata_buffer),
                      &metadata);
     player.duration_seconds = metadata.duration_seconds;
     player.audio_data_size = metadata.audio_size;
@@ -343,6 +352,11 @@ void Player_Stop(void)
 void Player_Pause(void)
 {
     if (player.state == PLAYER_STATE_PLAYING) {
+        if (BSP_VS1003_PauseStream(PLAYER_STREAM_PAUSE_TIMEOUT_MS)
+            != BSP_VS1003_OK) {
+            Player_SetError(PLAYER_ERR_DECODER);
+            return;
+        }
         player.state = PLAYER_STATE_PAUSED;
     }
 }
@@ -351,6 +365,7 @@ void Player_Resume(void)
 {
     if (player.state == PLAYER_STATE_PAUSED) {
         player.state = PLAYER_STATE_PLAYING;
+        BSP_VS1003_ResumeStream();
     }
 }
 
@@ -433,11 +448,11 @@ player_status_t Player_SetMode(player_mode_t mode)
 
 void Player_Tick(void)
 {
+    uint8_t *buffer;
+    uint16_t capacity;
     UINT bytes_read;
     FRESULT file_status;
     uint32_t stream_remaining;
-    uint16_t remaining;
-    uint16_t chunk;
     uint16_t read_size;
     bsp_vs1003_status_t decoder_status;
 
@@ -452,61 +467,47 @@ void Player_Tick(void)
         Player_SetError(PLAYER_ERR_OPEN);
         return;
     }
-
-    if (player.buffer_offset >= player.buffer_size) {
-        stream_remaining = (player.audio_data_size > player.file_position)
-            ? player.audio_data_size - player.file_position
-            : 0U;
-        if ((player.audio_data_size != 0U) && (stream_remaining == 0U)) {
-            Player_BeginEndOfTrack();
-            return;
-        }
-
-        read_size = sizeof(player.buffer);
-        if ((player.audio_data_size != 0U) && (stream_remaining < read_size)) {
-            read_size = (uint16_t)stream_remaining;
-        }
-        file_status = f_read(&player.file,
-                             player.buffer,
-                             read_size,
-                             &bytes_read);
-        if (file_status != FR_OK) {
-            Player_SetError(PLAYER_ERR_READ);
-            return;
-        }
-        if (bytes_read == 0U) {
-            Player_BeginEndOfTrack();
-            return;
-        }
-
-        player.buffer_size = (uint16_t)bytes_read;
-        player.buffer_offset = 0U;
+    if (BSP_VS1003_GetState() != BSP_VS1003_STATE_READY) {
+        Player_SetError(PLAYER_ERR_DECODER);
+        return;
     }
-
-    if (!BSP_VS1003_IsReady()) {
+    if (!BSP_VS1003_GetWriteBuffer(&buffer, &capacity)) {
         return;
     }
 
-    remaining = player.buffer_size - player.buffer_offset;
-    chunk = (remaining > BSP_VS1003_SDI_CHUNK_SIZE)
-        ? BSP_VS1003_SDI_CHUNK_SIZE
-        : remaining;
-
-    decoder_status = BSP_VS1003_SendData(
-        &player.buffer[player.buffer_offset],
-        chunk,
-        PLAYER_DREQ_POLL_TIMEOUT_MS);
-
-    if (decoder_status == BSP_VS1003_ERR_TIMEOUT) {
+    stream_remaining = (player.audio_data_size > player.file_read_position)
+        ? player.audio_data_size - player.file_read_position
+        : 0U;
+    if ((player.audio_data_size != 0U) && (stream_remaining == 0U)) {
+        BSP_VS1003_CancelWriteBuffer();
+        Player_BeginEndOfTrack();
         return;
     }
+
+    read_size = capacity;
+    if ((player.audio_data_size != 0U) && (stream_remaining < read_size)) {
+        read_size = (uint16_t)stream_remaining;
+    }
+    file_status = f_read(&player.file, buffer, read_size, &bytes_read);
+    if (file_status != FR_OK) {
+        BSP_VS1003_CancelWriteBuffer();
+        Player_SetError(PLAYER_ERR_READ);
+        return;
+    }
+    if (bytes_read == 0U) {
+        BSP_VS1003_CancelWriteBuffer();
+        Player_BeginEndOfTrack();
+        return;
+    }
+
+    decoder_status = BSP_VS1003_CommitBuffer((uint16_t)bytes_read);
     if (decoder_status != BSP_VS1003_OK) {
+        BSP_VS1003_CancelWriteBuffer();
         Player_SetError(PLAYER_ERR_DECODER);
         return;
     }
 
-    player.buffer_offset += chunk;
-    player.file_position += chunk;
+    player.file_read_position += bytes_read;
 }
 
 player_state_t Player_GetState(void)
@@ -541,7 +542,13 @@ uint32_t Player_GetTrackCount(void)
 
 uint32_t Player_GetFilePosition(void)
 {
-    return player.file_position;
+    uint32_t transferred = BSP_VS1003_GetStreamTransferredBytes();
+
+    if ((player.audio_data_size != 0U)
+        && (transferred > player.audio_data_size)) {
+        transferred = player.audio_data_size;
+    }
+    return transferred;
 }
 
 uint32_t Player_GetFileSize(void)
@@ -560,7 +567,7 @@ uint8_t Player_GetProgressPercent(void)
         return 0U;
     }
 
-    progress = (uint32_t)(((uint64_t)player.file_position * 100U)
+    progress = (uint32_t)(((uint64_t)Player_GetFilePosition() * 100U)
                           / total_size);
     return (progress > 100U) ? 100U : (uint8_t)progress;
 }
@@ -581,9 +588,19 @@ uint32_t Player_GetElapsedSeconds(void)
 {
     uint16_t seconds;
     uint8_t retry;
+    uint8_t resume_stream;
 
     if ((player.state != PLAYER_STATE_PLAYING)
         && (player.state != PLAYER_STATE_PAUSED)) {
+        return player.elapsed_seconds;
+    }
+
+    resume_stream = (player.state == PLAYER_STATE_PLAYING);
+    if (BSP_VS1003_PauseStream(PLAYER_STREAM_PAUSE_TIMEOUT_MS)
+        != BSP_VS1003_OK) {
+        if (resume_stream != 0U) {
+            BSP_VS1003_ResumeStream();
+        }
         return player.elapsed_seconds;
     }
 
@@ -602,6 +619,10 @@ uint32_t Player_GetElapsedSeconds(void)
         if (retry == 0U) {
             HAL_Delay(PLAYER_ELAPSED_RETRY_DELAY_MS);
         }
+    }
+
+    if (resume_stream != 0U) {
+        BSP_VS1003_ResumeStream();
     }
 
     return player.elapsed_seconds;

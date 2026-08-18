@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    bsp_vs1003.c
   * @brief   VS1003 音频解码器 BSP 驱动实现
-  * @note    SCI 和 SDI 均通过阻塞式 SPI2 访问，暂不使用 DMA。
+  * @note    SCI 使用阻塞式 SPI2，SDI 使用 DREQ + DMA 双缓冲异步发送。
   ******************************************************************************
   */
 
@@ -24,13 +24,47 @@
 #define VS1003_STATUS_VERSION_VALUE    0x0030U
 #define VS1003_VERIFY_RETRY_COUNT      10U
 #define VS1003_VERIFY_RETRY_DELAY_MS   2U
+#define VS1003_STREAM_BUFFER_COUNT     2U
+
+typedef enum
+{
+    VS1003_BUFFER_EMPTY = 0,
+    VS1003_BUFFER_WRITING,
+    VS1003_BUFFER_READY,
+    VS1003_BUFFER_ACTIVE
+} vs1003_buffer_state_t;
+
+typedef struct
+{
+    uint8_t data[BSP_VS1003_STREAM_BUFFER_SIZE];
+    volatile uint16_t size;
+    volatile uint16_t offset;
+    volatile vs1003_buffer_state_t state;
+} vs1003_stream_buffer_t;
+
+typedef struct
+{
+    vs1003_stream_buffer_t buffers[VS1003_STREAM_BUFFER_COUNT];
+    volatile int8_t producer_index;
+    volatile int8_t active_index;
+    volatile uint8_t write_index;
+    volatile uint8_t read_index;
+    volatile uint8_t tx_busy;
+    volatile uint8_t paused;
+    volatile uint16_t last_chunk_size;
+    volatile uint32_t transferred_bytes;
+} vs1003_stream_context_t;
 
 static const bsp_spi_context_t vs1003_spi = {
     .hspi = &hspi2
 };
 
-static bsp_vs1003_state_t vs1003_state = BSP_VS1003_STATE_UNINIT;
+static volatile bsp_vs1003_state_t vs1003_state = BSP_VS1003_STATE_UNINIT;
 static bsp_vs1003_verify_diag_t vs1003_verify_diag;
+static vs1003_stream_context_t vs1003_stream = {
+    .producer_index = -1,
+    .active_index = -1
+};
 
 static inline void VS1003_XCS_High(void)
 {
@@ -116,6 +150,42 @@ static bsp_vs1003_status_t VS1003_ReadExpected(uint8_t address,
 static bsp_vs1003_status_t VS1003_WriteVerified(uint8_t address,
                                                  uint16_t value);
 static bsp_vs1003_status_t VS1003_ConfigureAfterReset(void);
+static void VS1003_TryFeed(void);
+
+static uint32_t VS1003_EnterCritical(void)
+{
+    uint32_t primask = __get_PRIMASK();
+
+    __disable_irq();
+    return primask;
+}
+
+static void VS1003_ExitCritical(uint32_t primask)
+{
+    if (primask == 0U) {
+        __enable_irq();
+    }
+}
+
+static void VS1003_ResetStreamContext(void)
+{
+    uint8_t index;
+
+    for (index = 0U; index < VS1003_STREAM_BUFFER_COUNT; index++) {
+        vs1003_stream.buffers[index].size = 0U;
+        vs1003_stream.buffers[index].offset = 0U;
+        vs1003_stream.buffers[index].state = VS1003_BUFFER_EMPTY;
+    }
+
+    vs1003_stream.producer_index = -1;
+    vs1003_stream.active_index = -1;
+    vs1003_stream.write_index = 0U;
+    vs1003_stream.read_index = 0U;
+    vs1003_stream.tx_busy = 0U;
+    vs1003_stream.paused = 0U;
+    vs1003_stream.last_chunk_size = 0U;
+    vs1003_stream.transferred_bytes = 0U;
+}
 
 static void VS1003_ClearVerifyDiag(void)
 {
@@ -231,6 +301,7 @@ bsp_vs1003_status_t BSP_VS1003_HardwareReset(void)
 {
     bsp_vs1003_status_t status;
 
+    BSP_VS1003_AbortStream();
     vs1003_state = BSP_VS1003_STATE_UNINIT;
     VS1003_DeselectAll();
     VS1003_XRESET_Low();
@@ -256,6 +327,7 @@ bsp_vs1003_status_t BSP_VS1003_SoftReset(void)
 {
     bsp_vs1003_status_t status;
 
+    BSP_VS1003_AbortStream();
     status = BSP_VS1003_WriteRegister(
         BSP_VS1003_REG_MODE,
         BSP_VS1003_SM_SDINEW | BSP_VS1003_SM_RESET);
@@ -389,6 +461,7 @@ bsp_vs1003_status_t BSP_VS1003_Init(void)
 
 void BSP_VS1003_DeInit(void)
 {
+    BSP_VS1003_AbortStream();
     VS1003_DeselectAll();
     VS1003_XRESET_Low();
     vs1003_state = BSP_VS1003_STATE_UNINIT;
@@ -448,8 +521,244 @@ bsp_vs1003_status_t BSP_VS1003_SendData(const uint8_t *data,
     if (vs1003_state != BSP_VS1003_STATE_READY) {
         return BSP_VS1003_ERR_NOT_READY;
     }
+    if (!BSP_VS1003_IsStreamIdle()) {
+        return BSP_VS1003_ERR_BUSY;
+    }
 
     return VS1003_SendDataInternal(data, length, timeout_ms);
+}
+
+static void VS1003_TryFeed(void)
+{
+    vs1003_stream_buffer_t *active;
+    HAL_StatusTypeDef hal_status;
+    uint32_t primask;
+    uint16_t remaining;
+    uint16_t chunk;
+    uint8_t scan;
+    uint8_t index;
+
+    primask = VS1003_EnterCritical();
+
+    if ((vs1003_state != BSP_VS1003_STATE_READY)
+        || (vs1003_stream.paused != 0U)
+        || (vs1003_stream.tx_busy != 0U)
+        || !BSP_VS1003_IsReady()) {
+        VS1003_ExitCritical(primask);
+        return;
+    }
+
+    if (vs1003_stream.active_index < 0) {
+        for (scan = 0U; scan < VS1003_STREAM_BUFFER_COUNT; scan++) {
+            index = (uint8_t)((vs1003_stream.read_index + scan)
+                              % VS1003_STREAM_BUFFER_COUNT);
+            if (vs1003_stream.buffers[index].state
+                == VS1003_BUFFER_READY) {
+                vs1003_stream.active_index = (int8_t)index;
+                vs1003_stream.read_index = (uint8_t)(
+                    (index + 1U) % VS1003_STREAM_BUFFER_COUNT);
+                vs1003_stream.buffers[index].state =
+                    VS1003_BUFFER_ACTIVE;
+                break;
+            }
+        }
+    }
+
+    if (vs1003_stream.active_index < 0) {
+        VS1003_ExitCritical(primask);
+        return;
+    }
+
+    active = &vs1003_stream.buffers[vs1003_stream.active_index];
+    remaining = active->size - active->offset;
+    chunk = (remaining > BSP_VS1003_SDI_CHUNK_SIZE)
+        ? BSP_VS1003_SDI_CHUNK_SIZE
+        : remaining;
+
+    vs1003_stream.last_chunk_size = chunk;
+    vs1003_stream.tx_busy = 1U;
+    VS1003_XCS_High();
+    VS1003_XDCS_Low();
+    hal_status = BSP_SPI_Tx_DMA(&vs1003_spi,
+                                &active->data[active->offset],
+                                chunk);
+    if (hal_status != HAL_OK) {
+        VS1003_XDCS_High();
+        vs1003_stream.tx_busy = 0U;
+        vs1003_stream.paused = 1U;
+        vs1003_state = BSP_VS1003_STATE_ERROR;
+    }
+
+    VS1003_ExitCritical(primask);
+}
+
+uint8_t BSP_VS1003_GetWriteBuffer(uint8_t **buffer, uint16_t *capacity)
+{
+    uint32_t primask;
+    uint8_t scan;
+    uint8_t index;
+
+    if ((buffer == NULL) || (capacity == NULL)
+        || (vs1003_state != BSP_VS1003_STATE_READY)) {
+        return 0U;
+    }
+
+    primask = VS1003_EnterCritical();
+    if (vs1003_stream.producer_index >= 0) {
+        VS1003_ExitCritical(primask);
+        return 0U;
+    }
+
+    for (scan = 0U; scan < VS1003_STREAM_BUFFER_COUNT; scan++) {
+        index = (uint8_t)((vs1003_stream.write_index + scan)
+                          % VS1003_STREAM_BUFFER_COUNT);
+        if (vs1003_stream.buffers[index].state == VS1003_BUFFER_EMPTY) {
+            vs1003_stream.buffers[index].state = VS1003_BUFFER_WRITING;
+            vs1003_stream.buffers[index].size = 0U;
+            vs1003_stream.buffers[index].offset = 0U;
+            vs1003_stream.producer_index = (int8_t)index;
+            vs1003_stream.write_index = (uint8_t)(
+                (index + 1U) % VS1003_STREAM_BUFFER_COUNT);
+            *buffer = vs1003_stream.buffers[index].data;
+            *capacity = BSP_VS1003_STREAM_BUFFER_SIZE;
+            VS1003_ExitCritical(primask);
+            return 1U;
+        }
+    }
+
+    VS1003_ExitCritical(primask);
+    return 0U;
+}
+
+bsp_vs1003_status_t BSP_VS1003_CommitBuffer(uint16_t size)
+{
+    vs1003_stream_buffer_t *buffer;
+    uint32_t primask;
+    int8_t index;
+
+    if ((size == 0U) || (size > BSP_VS1003_STREAM_BUFFER_SIZE)) {
+        return BSP_VS1003_ERR_PARAM;
+    }
+    if (vs1003_state != BSP_VS1003_STATE_READY) {
+        return BSP_VS1003_ERR_NOT_READY;
+    }
+
+    primask = VS1003_EnterCritical();
+    index = vs1003_stream.producer_index;
+    if ((index < 0)
+        || (vs1003_stream.buffers[index].state
+            != VS1003_BUFFER_WRITING)) {
+        VS1003_ExitCritical(primask);
+        return BSP_VS1003_ERR_BUSY;
+    }
+
+    buffer = &vs1003_stream.buffers[index];
+    buffer->size = size;
+    buffer->offset = 0U;
+    buffer->state = VS1003_BUFFER_READY;
+    vs1003_stream.producer_index = -1;
+    VS1003_ExitCritical(primask);
+
+    VS1003_TryFeed();
+    return (vs1003_state == BSP_VS1003_STATE_READY)
+        ? BSP_VS1003_OK
+        : BSP_VS1003_ERR_SPI;
+}
+
+void BSP_VS1003_CancelWriteBuffer(void)
+{
+    uint32_t primask = VS1003_EnterCritical();
+    int8_t index = vs1003_stream.producer_index;
+
+    if ((index >= 0)
+        && (vs1003_stream.buffers[index].state
+            == VS1003_BUFFER_WRITING)) {
+        vs1003_stream.buffers[index].size = 0U;
+        vs1003_stream.buffers[index].offset = 0U;
+        vs1003_stream.buffers[index].state = VS1003_BUFFER_EMPTY;
+    }
+    vs1003_stream.producer_index = -1;
+    VS1003_ExitCritical(primask);
+}
+
+void BSP_VS1003_AbortStream(void)
+{
+    uint32_t primask = VS1003_EnterCritical();
+
+    vs1003_stream.paused = 1U;
+    if (vs1003_stream.tx_busy != 0U) {
+        (void)BSP_SPI_DMAStop(&vs1003_spi);
+    }
+    VS1003_XDCS_High();
+    VS1003_ResetStreamContext();
+    VS1003_ExitCritical(primask);
+}
+
+bsp_vs1003_status_t BSP_VS1003_PauseStream(uint32_t timeout_ms)
+{
+    uint32_t primask;
+    uint32_t start;
+
+    primask = VS1003_EnterCritical();
+    vs1003_stream.paused = 1U;
+    VS1003_ExitCritical(primask);
+
+    start = HAL_GetTick();
+    while (vs1003_stream.tx_busy != 0U) {
+        if ((HAL_GetTick() - start) >= timeout_ms) {
+            return BSP_VS1003_ERR_TIMEOUT;
+        }
+    }
+    return BSP_VS1003_OK;
+}
+
+void BSP_VS1003_ResumeStream(void)
+{
+    uint32_t primask;
+
+    if ((vs1003_state == BSP_VS1003_STATE_READY)
+        && (VS1003_SetPrescaler(VS1003_SPI_PRESCALER_SDI)
+            != BSP_VS1003_OK)) {
+        vs1003_state = BSP_VS1003_STATE_ERROR;
+        return;
+    }
+
+    primask = VS1003_EnterCritical();
+    vs1003_stream.paused = 0U;
+    VS1003_ExitCritical(primask);
+    VS1003_TryFeed();
+}
+
+uint8_t BSP_VS1003_IsStreamIdle(void)
+{
+    uint32_t primask;
+    uint8_t index;
+    uint8_t idle = 1U;
+
+    primask = VS1003_EnterCritical();
+    if ((vs1003_stream.tx_busy != 0U)
+        || (vs1003_stream.producer_index >= 0)
+        || (vs1003_stream.active_index >= 0)) {
+        idle = 0U;
+    }
+    for (index = 0U;
+         (index < VS1003_STREAM_BUFFER_COUNT) && (idle != 0U);
+         index++) {
+        if (vs1003_stream.buffers[index].state != VS1003_BUFFER_EMPTY) {
+            idle = 0U;
+        }
+    }
+    VS1003_ExitCritical(primask);
+    return idle;
+}
+
+uint32_t BSP_VS1003_GetStreamTransferredBytes(void)
+{
+    uint32_t primask = VS1003_EnterCritical();
+    uint32_t transferred = vs1003_stream.transferred_bytes;
+
+    VS1003_ExitCritical(primask);
+    return transferred;
 }
 
 bsp_vs1003_status_t BSP_VS1003_Flush(uint32_t timeout_ms)
@@ -529,6 +838,7 @@ bsp_vs1003_status_t BSP_VS1003_SetSurround(uint8_t enable)
     return status;
 }
 
+// todo
 bsp_vs1003_status_t BSP_VS1003_SineTest(uint8_t tone,
                                          uint32_t duration_ms)
 {
@@ -612,4 +922,49 @@ uint8_t BSP_VS1003_GetLastVerifyDiag(bsp_vs1003_verify_diag_t *diag)
 
     *diag = vs1003_verify_diag;
     return 1U;
+}
+void BSP_VS1003_SPI_TxCpltCallback(void)
+{
+    vs1003_stream_buffer_t *active;
+    uint32_t primask = VS1003_EnterCritical();
+
+    if ((vs1003_stream.tx_busy == 0U)
+        || (vs1003_stream.active_index < 0)) {
+        VS1003_XDCS_High();
+        VS1003_ExitCritical(primask);
+        return;
+    }
+
+    VS1003_XDCS_High();
+    active = &vs1003_stream.buffers[vs1003_stream.active_index];
+    active->offset += vs1003_stream.last_chunk_size;
+    vs1003_stream.transferred_bytes += vs1003_stream.last_chunk_size;
+    vs1003_stream.last_chunk_size = 0U;
+    vs1003_stream.tx_busy = 0U;
+
+    if (active->offset >= active->size) {
+        active->size = 0U;
+        active->offset = 0U;
+        active->state = VS1003_BUFFER_EMPTY;
+        vs1003_stream.active_index = -1;
+    }
+    VS1003_ExitCritical(primask);
+
+    VS1003_TryFeed();
+}
+
+void BSP_VS1003_SPI_ErrorCallback(void)
+{
+    uint32_t primask = VS1003_EnterCritical();
+
+    VS1003_XDCS_High();
+    vs1003_stream.tx_busy = 0U;
+    vs1003_stream.paused = 1U;
+    vs1003_state = BSP_VS1003_STATE_ERROR;
+    VS1003_ExitCritical(primask);
+}
+
+void BSP_VS1003_DREQCallback(void)
+{
+    VS1003_TryFeed();
 }
