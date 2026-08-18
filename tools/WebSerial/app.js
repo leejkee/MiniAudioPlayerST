@@ -24,6 +24,7 @@
   let rxCount     = 0;
   let txCount     = 0;
   let readClosed  = null;    // Promise that resolves when reader cancels
+  let disconnecting = false;
   const utf8decoder = new TextDecoder('utf-8', { fatal: false });
 
   /* ---- helpers ---- */
@@ -56,10 +57,10 @@
     readClosed = new Promise((resolve) => {
       (async () => {
         try {
-          while (port && port.readable) {
+          while (!disconnecting && port && port.readable) {
             reader = port.readable.getReader();
             try {
-              while (true) {
+              while (!disconnecting) {
                 const { value, done } = await reader.read();
                 if (done) break;
                 if (value) {
@@ -108,6 +109,12 @@
 
   /* ---- disconnect ---- */
   async function disconnect() {
+    if (disconnecting || !port) return;
+
+    disconnecting = true;
+    btnConnect.disabled = true;
+    btnConnect.textContent = 'Disconnecting...';
+
     try {
       if (reader) {
         await reader.cancel();
@@ -133,10 +140,12 @@
     } catch (_) { /* ignore */ }
 
     port = null;
+    disconnecting = false;
 
     elStatus.textContent = 'DISCONNECTED';
     elStatus.className   = 'status-disconnected';
     btnConnect.textContent = 'Connect';
+    btnConnect.disabled  = false;
     btnClear.disabled    = true;
     btnSend.disabled     = true;
     elInput.disabled     = true;
