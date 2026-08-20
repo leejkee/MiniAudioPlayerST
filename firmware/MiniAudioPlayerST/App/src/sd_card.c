@@ -11,6 +11,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "sd_card.h"
 #include "bsp_config.h"
+
+#define LOG_MODULE "SDCard"
+
 #include <string.h>
 
 /* 内部辅助 ----------------------------------------------------------------*/
@@ -200,15 +203,15 @@ SD_Status_t SD_Mount(void)
 {
     FRESULT fr;
 
-    BSP_DEBUG_PRINTF("[SD] Mounting file system...\r\n");
+    LOG_DEBUG("Mount", "Mounting file system");
 
     fr = f_mount(&USERFatFS, TUSERPath, 1);
     if (fr != FR_OK) {
-        BSP_DEBUG_PRINTF("[SD] f_mount failed: %d\r\n", fr);
+        LOG_DEBUG("Mount", "f_mount failed: %d", fr);
         return SD_MapFRESULT(fr);
     }
 
-    BSP_DEBUG_PRINTF("[SD] Mount OK\r\n");
+    LOG_DEBUG("Mount", "OK");
     return SD_OK;
 }
 
@@ -218,7 +221,7 @@ SD_Status_t SD_Mount(void)
 void SD_Unmount(void)
 {
     f_mount(NULL, TUSERPath, 0);
-    BSP_DEBUG_PRINTF("[SD] Unmounted\r\n");
+    LOG_DEBUG("Unmount", "Done");
 }
 
 SD_Status_t SD_ReadFile(const WCHAR *path, WCHAR *buffer, uint32_t *len)
@@ -248,7 +251,7 @@ SD_Status_t SD_ReadFile(const WCHAR *path, WCHAR *buffer, uint32_t *len)
 }
 
 /**
-  * @brief  DEBUG FUNCTION 列出目录内容, 通过 BSP_DEBUG_PRINTF 输出到串口
+  * @brief  DEBUG FUNCTION 列出目录内容, 通过 LOG_DEBUG 输出到串口
   */
 SD_Status_t SD_Debug_ListDir(const char *path)
 {
@@ -275,14 +278,14 @@ SD_Status_t SD_Debug_ListDir(const char *path)
     tpath = path;
 #endif
 
-    BSP_DEBUG_PRINTF("[SD] Listing directory: %s\r\n", path);
+    LOG_DEBUG("ListDir", "path=%s", path);
 
     fno.lfname = lfn_buf;
     fno.lfsize = sizeof(lfn_buf) / sizeof(lfn_buf[0]);
 
     fr = f_opendir(&dir, tpath);
     if (fr != FR_OK) {
-        BSP_DEBUG_PRINTF("[SD] f_opendir(%s) failed: %d\r\n", path, fr);
+        LOG_DEBUG("ListDir", "f_opendir(%s) failed: %d", path, fr);
         return SD_MapFRESULT(fr);
     }
 
@@ -315,16 +318,16 @@ SD_Status_t SD_Debug_ListDir(const char *path)
 #endif
 
         if (fno.fattrib & AM_DIR) {
-            BSP_DEBUG_PRINTF("  [DIR]  %s\r\n", display);
+            LOG_DEBUG("DIR", "%s", display);
         } else {
-            BSP_DEBUG_PRINTF("  [FILE] %s  %lu bytes\r\n",
+            LOG_DEBUG("FILE", "%s  %lu bytes",
                              display,
                              (unsigned long)fno.fsize);
         }
     }
 
     f_closedir(&dir);
-    BSP_DEBUG_PRINTF("[SD] Total: %lu entries\r\n",
+    LOG_DEBUG("ListDir", "Total: %lu entries",
                      (unsigned long)count);
     return SD_OK;
 }

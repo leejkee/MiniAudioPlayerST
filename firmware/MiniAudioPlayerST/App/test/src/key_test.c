@@ -13,6 +13,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "key_test.h"
 #include "bsp_config.h"
+#define LOG_MODULE "KeyTest"
 #include "bsp_key.h"
 
 /* 按键调试信息 --------------------------------------------------------------*/
@@ -57,13 +58,13 @@ void KeyTest_Run(void)
     }
 
     if (!initialized) {
-        BSP_DEBUG_PRINTF("\r\n========== Key Driver UART Test ==========\r\n");
-        BSP_DEBUG_PRINTF("[KEY] Monitoring debounced key states...\r\n");
-        BSP_DEBUG_PRINTF("[RAW] Initial GPIOA->IDR: 0x%04X, GPIOB->IDR: 0x%04X, key bitmap: 0x%02X\r\n",
+        LOG_DEBUG("Banner", "Key Driver UART Test");
+        LOG_DEBUG("KEY", "Monitoring debounced key states...");
+        LOG_DEBUG("RAW", "Initial GPIOA->IDR: 0x%04X, GPIOB->IDR: 0x%04X, key bitmap: 0x%02X",
                          (unsigned int)GPIOA->IDR,
                          (unsigned int)GPIOB->IDR,
                          raw_pressed);
-        BSP_DEBUG_PRINTF("[KEY] Initial pressed bitmap: 0x%02X\r\n", current_pressed);
+        LOG_DEBUG("KEY", "Initial pressed bitmap: 0x%02X", current_pressed);
         previous_raw_pressed = raw_pressed;
         previous_pressed = current_pressed;
         initialized = 1;
@@ -71,7 +72,7 @@ void KeyTest_Run(void)
     }
 
     if (raw_pressed != previous_raw_pressed) {
-        BSP_DEBUG_PRINTF("[RAW] GPIOB->IDR: 0x%04X, keys: 0x%02X, PB0=%u, PB1=%u\r\n",
+        LOG_DEBUG("RAW", "GPIOB->IDR: 0x%04X, keys: 0x%02X, PB0=%u, PB1=%u",
                          (unsigned int)GPIOB->IDR,
                          raw_pressed,
                          (unsigned int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0),
@@ -84,7 +85,7 @@ void KeyTest_Run(void)
     for (bsp_key_id_t id = KEY_MENU; id < KEY_COUNT; id++) {
         uint8_t key_mask = (1U << id);
         if (changed & key_mask) {
-            BSP_DEBUG_PRINTF("[KEY] %s: %s\r\n",
+            LOG_DEBUG("KEY", "%s: %s",
                              key_names[id],
                              (current_pressed & key_mask) ? "PRESSED" : "RELEASED");
         }
@@ -95,8 +96,8 @@ void KeyTest_Run(void)
 
 void KeyTest_Init(void)
 {
-    BSP_DEBUG_PRINTF("\r\n========== Key Driver UART Test ==========\r\n");
-    BSP_DEBUG_PRINTF("[KEY] Initializing key driver...\r\n");
+    LOG_DEBUG("Banner", "Key Driver UART Test");
+    LOG_DEBUG("KEY", "Initializing key driver...");
     BSP_Key_Init();
-    BSP_DEBUG_PRINTF("[KEY] Key driver initialized. Press and release keys to see debug output.\r\n");
+    LOG_DEBUG("KEY", "Key driver initialized. Press and release keys to see debug output.");
 }

@@ -26,8 +26,7 @@ extern "C" {
   * @note   USART2 由 CubeMX 配置为常驻外设, 始终初始化, 不受此开关影响。
   *         波特率等硬件参数在 CubeMX .ioc 中管理。
   */
-#define BSP_DEBUG_UART              1
-
+#define BSP_DEBUG_UART 1
 
 /* ========================================================================= */
 /*                         调试日志等级 (可选扩展)                            */
@@ -37,22 +36,20 @@ extern "C" {
   * @brief  日志等级: 0=NONE  1=ERROR  2=WARN  3=INFO  4=DEBUG
   * @note   当前仅用作预留设计, 具体过滤逻辑在 bsp_uart.c 中实现
   */
-#define BSP_DEBUG_LEVEL             4
-
+#define BSP_DEBUG_LEVEL 4
 
 /* ========================================================================= */
 /*                          调试打印宏                                        */
 /* ========================================================================= */
 
 #if BSP_DEBUG_UART
-  /* ---- 启用时: 走 printf ---- */
-  #include <stdio.h>
-  #define BSP_DEBUG_PRINTF(fmt, ...)   printf(fmt, ##__VA_ARGS__)
+/* ---- 启用时: 走 printf ---- */
+#include <stdio.h>
+#define LOG_DEBUG(event, resfmt, ...)                                                              \
+    printf("[" LOG_MODULE "][" event "]: " resfmt "\r\n", ##__VA_ARGS__)
 #else
-  /* ---- 禁用时: 宏展开为空, 参数不会被求值 ---- */
-  #define BSP_DEBUG_PRINTF(fmt, ...)   ((void)0)
+#define LOG_DEBUG(event, resfmt, ...) ((void)0)
 #endif
-
 
 #ifdef __cplusplus
 }

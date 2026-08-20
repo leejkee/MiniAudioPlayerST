@@ -10,6 +10,8 @@
 #include "bsp_i2c_scanner.h"
 #include "bsp_config.h"
 
+#define LOG_MODULE "I2CScanner"
+
 /* 公开函数 ------------------------------------------------------------------*/
 
 /**
@@ -21,31 +23,25 @@
 uint8_t BSP_I2C_Scanner_Scan(I2C_HandleTypeDef *hi2c, uint32_t timeout)
 {
     uint8_t count = 0;
-    uint8_t first = 1;    /* 控制换行, 首个设备不额外换行 */
 
     if (hi2c == NULL) {
-        BSP_DEBUG_PRINTF("[I2C] Error: handle is NULL\r\n");
+        LOG_DEBUG("Scan", "handle is NULL");
         return 0;
     }
 
-    BSP_DEBUG_PRINTF("[I2C] Scanning bus (7-bit) ...\r\n");
+    LOG_DEBUG("Scan", "Scanning 7-bit address space");
 
     for (uint8_t addr = 1; addr < 128; addr++) {
         if (HAL_I2C_IsDeviceReady(hi2c, addr << 1, 2, timeout) == HAL_OK) {
-            if (first) {
-                BSP_DEBUG_PRINTF("[I2C] Found: 0x%02X", addr);
-                first = 0;
-            } else {
-                BSP_DEBUG_PRINTF(", 0x%02X", addr);
-            }
+            LOG_DEBUG("Found", "address=0x%02X", addr);
             count++;
         }
     }
 
     if (count == 0) {
-        BSP_DEBUG_PRINTF("[I2C] No device found\r\n");
+        LOG_DEBUG("Result", "No device found");
     } else {
-        BSP_DEBUG_PRINTF("\r\n[I2C] Total: %u device(s)\r\n", count);
+        LOG_DEBUG("Result", "%u device(s) found", count);
     }
 
     return count;

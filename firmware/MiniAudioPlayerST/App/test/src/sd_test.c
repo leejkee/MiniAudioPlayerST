@@ -14,6 +14,7 @@
 #include "sd_test.h"
 #include "sd_card.h"
 #include "bsp_config.h"
+#define LOG_MODULE "SDTest"
 
 /* 测试入口 ------------------------------------------------------------------*/
 
@@ -24,40 +25,40 @@
   */
 void SD_Test_Run(void)
 {
-    BSP_DEBUG_PRINTF("\r\n");
-    BSP_DEBUG_PRINTF("========== SD Card Test Start ==========\r\n");
-    BSP_DEBUG_PRINTF("\r\n");
+    LOG_DEBUG("Message", "");
+    LOG_DEBUG("Banner", "SD Card Test Start");
+    LOG_DEBUG("Message", "");
 
     /* ---- 步骤 1: 挂载文件系统 ---- */
-    BSP_DEBUG_PRINTF("[TEST 1] Mounting SD card...\r\n");
+    LOG_DEBUG("TEST 1", "Mounting SD card...");
     if (SD_Mount() != SD_OK) {
-        BSP_DEBUG_PRINTF("[TEST 1] Mount FAILED - check SD card\r\n");
-        BSP_DEBUG_PRINTF("\r\n");
-        BSP_DEBUG_PRINTF("========== SD Card Test Aborted ==========\r\n");
+        LOG_DEBUG("TEST 1", "Mount FAILED - check SD card");
+        LOG_DEBUG("Message", "");
+        LOG_DEBUG("Banner", "SD Card Test Aborted");
         return;
     }
-    BSP_DEBUG_PRINTF("[TEST 1] Mount OK\r\n");
-    BSP_DEBUG_PRINTF("\r\n");
+    LOG_DEBUG("TEST 1", "Mount OK");
+    LOG_DEBUG("Message", "");
 
     /* ---- 步骤 2: 列出根目录 ---- */
-    BSP_DEBUG_PRINTF("[TEST 2] Listing root directory:\r\n");
-    BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
+    LOG_DEBUG("TEST 2", "Listing root directory:");
+    LOG_DEBUG("Message", "-------------------------------------------");
     SD_Debug_ListDir("/");
-    BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
-    BSP_DEBUG_PRINTF("\r\n");
+    LOG_DEBUG("Message", "-------------------------------------------");
+    LOG_DEBUG("Message", "");
 
     /* ---- 步骤 3: 列出 /music 目录 ---- */
-    BSP_DEBUG_PRINTF("[TEST 3] Listing /music directory:\r\n");
-    BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
+    LOG_DEBUG("TEST 3", "Listing /music directory:");
+    LOG_DEBUG("Message", "-------------------------------------------");
     SD_Debug_ListDir("/music");
-    BSP_DEBUG_PRINTF("-------------------------------------------\r\n");
-    BSP_DEBUG_PRINTF("\r\n");
+    LOG_DEBUG("Message", "-------------------------------------------");
+    LOG_DEBUG("Message", "");
 
     /* ---- 步骤 4: 卸载文件系统 ---- */
-    BSP_DEBUG_PRINTF("[TEST 4] Unmounting SD card...\r\n");
+    LOG_DEBUG("TEST 4", "Unmounting SD card...");
     SD_Unmount();
-    BSP_DEBUG_PRINTF("[TEST 4] Unmount OK\r\n");
-    BSP_DEBUG_PRINTF("\r\n");
+    LOG_DEBUG("TEST 4", "Unmount OK");
+    LOG_DEBUG("Message", "");
 
-    BSP_DEBUG_PRINTF("========== SD Card Test End ==========\r\n");
+    LOG_DEBUG("Banner", "SD Card Test End");
 }

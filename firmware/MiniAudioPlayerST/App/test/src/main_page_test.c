@@ -9,6 +9,7 @@
 #include "main_page_test.h"
 
 #include "bsp_config.h"
+#define LOG_MODULE "MainPageTest"
 #include "bsp_key.h"
 #include "bsp_ssd1315.h"
 #include "file_manager.h"
@@ -154,8 +155,7 @@ static void _ReportSnapshot(const char *reason)
     _NameToUtf8(_DisplayedName(),
                 name_utf8,
                 (uint16_t)sizeof(name_utf8));
-    BSP_DEBUG_PRINTF(
-        "[MAIN][%s] state=%s mode=%s volume=%u%% track=%lu/%lu error=%d\r\n",
+    LOG_DEBUG("Snapshot", "reason=%s state=%s mode=%s volume=%u%% track=%lu/%lu error=%d",
         reason,
         _StateName(Player_GetState()),
         _ModeName(Player_GetMode()),
@@ -163,10 +163,10 @@ static void _ReportSnapshot(const char *reason)
         (unsigned long)((track_count > 0U) ? track_index + 1U : 0U),
         (unsigned long)track_count,
         (int)Player_GetLastError());
-    BSP_DEBUG_PRINTF("[MAIN][META] name=%s duration=%lu sec\r\n",
+    LOG_DEBUG("Metadata", "name=%s duration=%lu sec",
                      (name_utf8[0] != 0) ? name_utf8 : "No Music",
                      (unsigned long)Player_GetDurationSeconds());
-    BSP_DEBUG_PRINTF("[MAIN][TIME] [%02lu:%02lu]/[%02lu:%02lu]\r\n",
+    LOG_DEBUG("Time", "%02lu:%02lu/%02lu:%02lu",
                      (unsigned long)(elapsed / 60U),
                      (unsigned long)(elapsed % 60U),
                      (unsigned long)(duration / 60U),
@@ -175,8 +175,7 @@ static void _ReportSnapshot(const char *reason)
 
 static void _ReportIconSizes(uint8_t pressed)
 {
-    BSP_DEBUG_PRINTF(
-        "[MAIN][ICON] L=%ux%u OK=%ux%u R=%ux%u; pressed bitmap=0x%02X\r\n",
+    LOG_DEBUG("Icon", "L=%ux%u OK=%ux%u R=%ux%u; pressed bitmap=0x%02X",
         (unsigned int)_ExpectedIconSize(pressed, KEY_L),
         (unsigned int)_ExpectedIconSize(pressed, KEY_L),
         (unsigned int)_ExpectedIconSize(pressed, KEY_OK),
@@ -190,18 +189,18 @@ void MainPage_Test_Init(void)
 {
     player_status_t status;
 
-    BSP_DEBUG_PRINTF("\r\n========== Main Page Integration Test ==========\r\n");
+    LOG_DEBUG("Banner", "Main Page Integration Test");
     BSP_SSD1315_Init();
     BSP_Key_Init();
     status = Player_Init();
     UI_Render_SwitchPage(&Page_Main);
     test_initialized = 1U;
 
-    BSP_DEBUG_PRINTF("[MAIN][INIT] Player_Init=%d\r\n", (int)status);
-    BSP_DEBUG_PRINTF("[MAIN][STEP] OK: play/pause; L/R: previous/next track.\r\n");
-    BSP_DEBUG_PRINTF("[MAIN][CHECK] Hold L/OK/R: icon must grow 12x12 -> 16x16.\r\n");
-    BSP_DEBUG_PRINTF("[MAIN][CHECK] Release key: icon returns to 12x12 and action runs.\r\n");
-    BSP_DEBUG_PRINTF("[MAIN][CHECK] Compare OLED song/time with UART META/TIME lines.\r\n");
+    LOG_DEBUG("Init", "Player_Init=%d", (int)status);
+    LOG_DEBUG("Step", "OK: play/pause; L/R: previous/next track.");
+    LOG_DEBUG("Check", "Hold L/OK/R: icon must grow 12x12 -> 16x16.");
+    LOG_DEBUG("Check", "Release key: icon returns to 12x12 and action runs.");
+    LOG_DEBUG("Check", "Compare OLED song/time with UART metadata/time lines.");
     _ReportSnapshot("INIT");
     _ReportIconSizes(_PressedBitmap());
 }

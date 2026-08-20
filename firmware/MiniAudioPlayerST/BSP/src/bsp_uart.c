@@ -73,7 +73,7 @@ void BSP_UART_Init(void)
 /**
   * @brief  调试串口禁用时的空实现
   * @note   USART2 硬件仍然初始化 (CubeMX 常驻外设)，
-  *         但 printf 重定向不编译，所有 BSP_DEBUG_PRINTF 宏展开为空。
+  *         但 printf 重定向不编译，所有 LOG_DEBUG 宏展开为空。
   */
 void BSP_UART_Init(void)
 {

@@ -12,6 +12,7 @@
 #include "sd_card.h"
 #include "bsp_ssd1315.h"
 #include "bsp_config.h"
+#define LOG_MODULE "SDOLEDTest"
 #include "ui_file_page.h"
 
 /* -------------------------------------------------------------------------- */
@@ -21,35 +22,35 @@ void SD_OLED_Test_Init(void)
 {
     static const WCHAR music_path[] = {'/', 'm', 'u', 's', 'i', 'c', 0};
 
-    BSP_DEBUG_PRINTF("\r\n");
-    BSP_DEBUG_PRINTF("========== SD + OLED File Page Test ==========\r\n");
+    LOG_DEBUG("Message", "");
+    LOG_DEBUG("Banner", "SD + OLED File Page Test");
 
     /* 1. 初始化 OLED 显示 */
     BSP_SSD1315_Init();
-    BSP_DEBUG_PRINTF("[INIT] OLED initialized.\r\n");
+    LOG_DEBUG("INIT", "OLED initialized.");
 
     /* 2. 挂载 SD 卡 (FATFS f_mount) */
     SD_Status_t sd_stat = SD_Mount();
     if (sd_stat != SD_OK) {
-        BSP_DEBUG_PRINTF("[ERROR] SD mount failed, code=%d\r\n", sd_stat);
+        LOG_DEBUG("ERROR", "SD mount failed, code=%d", sd_stat);
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "SD Mount Err!", 1);
         BSP_SSD1315_Refresh();
         return;
     }
-    BSP_DEBUG_PRINTF("[INIT] SD card mounted OK.\r\n");
+    LOG_DEBUG("INIT", "SD card mounted OK.");
 
     /* 3. 输出 /music 原始目录项和文件计数, 用于核对 OLED 列表内容 */
-    BSP_DEBUG_PRINTF("[DIAG] Listing /music directory...\r\n");
+    LOG_DEBUG("DIAG", "Listing /music directory...");
     sd_stat = SD_Debug_ListDir("/music");
-    BSP_DEBUG_PRINTF("[DIAG] SD_Debug_ListDir status=%d\r\n", sd_stat);
-    BSP_DEBUG_PRINTF("[DIAG] SD_CountFiles(/music)=%u\r\n",
+    LOG_DEBUG("DIAG", "SD_Debug_ListDir status=%d", sd_stat);
+    LOG_DEBUG("DIAG", "SD_CountFiles(/music)=%u",
                      SD_CountFiles(music_path));
 
     /* 4. 切换到文件列表页面 (Page_File.on_enter → FileManager_Init → _Render) */
     // UI_Render_SwitchPage(&Page_File);
     Page_File.on_enter();
-    BSP_DEBUG_PRINTF("[INIT] Switched to File Page.\r\n");
+    LOG_DEBUG("INIT", "Switched to File Page.");
 }
 
 /* -------------------------------------------------------------------------- */
