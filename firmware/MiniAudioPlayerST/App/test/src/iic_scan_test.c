@@ -4,7 +4,7 @@
 #define LOG_MODULE "I2CScanTest"
 
 
-void BSP_I2C_Scanner_Test(I2C_HandleTypeDef *hi2c, uint32_t timeout)
+void I2C_Scanner_Test(I2C_HandleTypeDef *hi2c, uint32_t timeout)
 {
     uint8_t test_count = 5;
     while (test_count--) {

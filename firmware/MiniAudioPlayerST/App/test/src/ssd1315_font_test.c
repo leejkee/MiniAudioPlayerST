@@ -8,7 +8,7 @@
 #define BSP_SSD1315_FONT_TEST_DELAY  1000    /* 1s delay between steps */
 
 
-void BSP_SSD1315_Font_Test_RunAll(void)
+void SSD1315_Font_Test_RunAll(void)
 {
     LOG_DEBUG("Banner", "SSD1315 Font Test Start");
     LOG_DEBUG("TEST 0", "Show English font ...");

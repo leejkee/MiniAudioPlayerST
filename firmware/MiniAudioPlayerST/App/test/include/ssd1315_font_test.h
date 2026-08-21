@@ -7,7 +7,7 @@ extern "C" {
 
 #include "main.h"
 
-void BSP_SSD1315_Font_Test_RunAll(void);
+void SSD1315_Font_Test_RunAll(void);
 
 
 #ifdef __cplusplus
