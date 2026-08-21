@@ -12,6 +12,10 @@
 #include "bsp_key.h"
 #include "tim.h"
 
+
+/* MACRO */
+#define KEY_HISTORY_MASK  0x07U
+
 /* 按键引脚查找表 ------------------------------------------------------------*/
 typedef struct {
     GPIO_TypeDef *port;
@@ -28,8 +32,8 @@ static const bsp_key_pin_t key_pins[KEY_COUNT] = {
 /* 消抖上下文 ----------------------------------------------------------------*/
 static volatile struct {
     uint8_t stable_state;            /* 消抖后的稳定状态 (bitmap, 1=按下) */
-    uint8_t debounce_cnt[KEY_COUNT]; /* 每个按键的消抖计数 */
     uint8_t edge_flags;              /* 边沿事件标记 (sticky, bit=1 表示有待消费事件) */
+    uint8_t key_history[KEY_COUNT];
 } key_ctx;
 
 /* 公开函数 ------------------------------------------------------------------*/
@@ -45,7 +49,7 @@ void BSP_Key_Init(void)
     key_ctx.stable_state = 0U;
     key_ctx.edge_flags = 0U;
     for (i = 0U; i < KEY_COUNT; i++) {
-        key_ctx.debounce_cnt[i] = 0U;
+        key_ctx.key_history[i] = 0U;
     }
 
     __HAL_TIM_SET_COUNTER(&htim1, 0U);
@@ -89,29 +93,20 @@ void BSP_Key_Poll(void)
         }
     }
 
-    /* 2. 逐键运行消抖状态机 */
-    for (uint8_t i = 0; i < KEY_COUNT; i++) {
-        uint8_t raw_bit = (current_raw >> i) & 1;
-        uint8_t stable_bit = (key_ctx.stable_state >> i) & 1;
+    for (uint8_t i = 0; i < KEY_COUNT; i++){
+        uint8_t raw_bit = (current_raw >> i) & 1U;
+        uint8_t bit_mask = (uint8_t)(1U << i);
 
-        if (raw_bit == stable_bit) {
-            /* 与稳定状态一致 → 清零计数 */
-            key_ctx.debounce_cnt[i] = 0;
-        } else {
-            /* 不一致 → 累加计数 */
-            key_ctx.debounce_cnt[i]++;
+        key_ctx.key_history[i] = (uint8_t)(((key_ctx.key_history[i] << 1) | raw_bit) & KEY_HISTORY_MASK);
 
-            /* 连续 N 次一致 → 确认变化 */
-            if (key_ctx.debounce_cnt[i] >= BSP_KEY_DEBOUNCE_CNT) {
-                /* 翻转稳定状态位 */
-                key_ctx.stable_state ^= (1 << i);
-                key_ctx.debounce_cnt[i] = 0;
-
-                /* 仅在释放沿 (1→0) 设置事件标记 */
-                if (stable_bit && !raw_bit) {
-                    key_ctx.edge_flags |= (1 << i);
-                }
-            }
+        if (key_ctx.key_history[i] == KEY_HISTORY_MASK){
+            // 稳定的4次1，按下，修改状态为按下 (1)
+            key_ctx.stable_state |= bit_mask;
+        }
+        else if ((key_ctx.key_history[i] == 0U) && ((key_ctx.stable_state & bit_mask) != 0U)) {
+            // 稳定的4次0，并且之前是1，释放，修改状态为释放 (0)，并且标记释放事件
+            key_ctx.stable_state &= (uint8_t)(~bit_mask);
+            key_ctx.edge_flags |= bit_mask;
         }
     }
 }
