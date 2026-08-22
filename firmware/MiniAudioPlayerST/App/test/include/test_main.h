@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+/* Set to 1 to run Test_Main, or 0 to run the application. */
+#define TEST_MAIN_ENABLED 0
+
 /* Test Inlcude Begin */
 #include "main.h"
 /* Test Inlcude End */

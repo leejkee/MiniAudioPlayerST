@@ -28,8 +28,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-// #include "test_main.h"
+#include "test_main.h"
+#if !TEST_MAIN_ENABLED
 #include "app.h"
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -101,8 +103,11 @@ int main(void)
   MX_FATFS_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  // Test_Init();
+#if TEST_MAIN_ENABLED
+  Test_Init();
+#else
   App_Init();
+#endif
 
   /* USER CODE END 2 */
 
@@ -113,8 +118,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    //Test_Run();
+#if TEST_MAIN_ENABLED
+    Test_Run();
+#else
     App_Run();
+#endif
   }
   /* USER CODE END 3 */
 }

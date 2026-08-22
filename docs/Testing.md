@@ -2,25 +2,8 @@
 
 ### 运行测试
 
-在 `main.c` 中 `#include` 对应的测试头文件，并在 `main()` 的 `while(1)` 之前调用测试入口函数：
+在 `App/test/include/test_main.h` 中设置 `TEST_MAIN_ENABLED` 宏：设为 `1` 时 `main.c` 编译并运行 `Test_Init()` / `Test_Run()` 测试入口；设为 `0` 时编译并运行 `App_Init()` / `App_Run()` 应用入口。
 
-```c
-/* USER CODE BEGIN Includes */
-#include "ssd1315_test.h"
-/* USER CODE END Includes */
-
-int main(void)
-{
-    // ... HAL_Init / SystemClock_Config / MX_*_Init ...
-    /* USER CODE BEGIN 2 */
-    SSD1315_Test_RunAll();
-    /* USER CODE END 2 */
-
-    while (1) { }
-}
-```
-
-测试完成后注释掉调用即可，不影响后续开发。
 
 ### 测试清单
 
