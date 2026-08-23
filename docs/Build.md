@@ -33,7 +33,7 @@ STM32CubeMX 和 Keil MDK-ARM 只在重新生成 CubeMX 代码或使用 Keil/ARMC
 
 ### 代码格式化
 
-本项目推荐使用 clang-format 18。格式化工具由跨平台 CMake 脚本提供，不需要配置 ARM 工具链或生成构建目录。
+本项目固定使用 clang-format 22.1.8，本地与 CI 必须使用相同版本。格式化工具由跨平台 CMake 脚本提供，不需要配置 ARM 工具链或生成构建目录。
 
 在仓库根目录格式化代码：
 
@@ -53,7 +53,7 @@ cmake -DCLANG_FORMAT_MODE=CHECK -P cmake/clang-format.cmake
 cmake -P cmake/clang-format.cmake
 ```
 
-脚本会依次查找 `clang-format-18` 和 `clang-format`。如果可执行文件未加入 `PATH`，可显式指定路径：
+脚本会依次查找 `clang-format-22` 和 `clang-format`，并校验版本必须为 22.1.8。如果可执行文件未加入 `PATH`，可显式指定路径：
 
 ```bash
 cmake -DCLANG_FORMAT_EXECUTABLE=/path/to/clang-format -DCLANG_FORMAT_MODE=FORMAT -P cmake/clang-format.cmake

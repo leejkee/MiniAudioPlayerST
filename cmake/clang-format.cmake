@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(_valid_modes CHECK FORMAT)
+set(_required_clang_format_version "22.1.8")
 
 if(NOT DEFINED CLANG_FORMAT_MODE)
     set(CLANG_FORMAT_MODE CHECK)
@@ -25,12 +26,12 @@ if(DEFINED CLANG_FORMAT_EXECUTABLE AND NOT CLANG_FORMAT_EXECUTABLE STREQUAL "")
         find_program(_clang_format NAMES "${CLANG_FORMAT_EXECUTABLE}")
     endif()
 else()
-    find_program(_clang_format NAMES clang-format-18 clang-format)
+    find_program(_clang_format NAMES clang-format-22 clang-format)
 endif()
 
 if(NOT _clang_format)
     message(FATAL_ERROR
-        "clang-format was not found. Install clang-format 18 or set "
+        "clang-format was not found. Install clang-format ${_required_clang_format_version} or set "
         "-DCLANG_FORMAT_EXECUTABLE=<path-or-command>."
     )
 endif()
@@ -47,6 +48,19 @@ if(NOT _version_result EQUAL 0)
     )
 endif()
 string(STRIP "${_version_output}" _version_output)
+string(REGEX MATCH
+    "clang-format version ([0-9]+\\.[0-9]+\\.[0-9]+)"
+    _version_match
+    "${_version_output}"
+)
+if(NOT _version_match)
+    message(FATAL_ERROR "Unable to parse clang-format version from: ${_version_output}")
+endif()
+if(NOT "${CMAKE_MATCH_1}" STREQUAL "${_required_clang_format_version}")
+    message(FATAL_ERROR
+        "clang-format ${_required_clang_format_version} is required, but ${CMAKE_MATCH_1} was found."
+    )
+endif()
 message(STATUS "Using ${_version_output}")
 
 get_filename_component(_project_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
