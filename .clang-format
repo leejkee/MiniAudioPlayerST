@@ -23,6 +23,7 @@ AccessModifierOffset: -4
 
 # --- Braces (CubeMX-style Allman layout) ---
 BreakBeforeBraces: Allman
+IndentExternBlock: NoIndent
 
 # --- Pointers and spacing ---
 PointerAlignment: Right

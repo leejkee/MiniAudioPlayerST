@@ -8,7 +8,7 @@ extern "C"
 
 #include "main.h"
 
-    void SSD1315_Font_Test_RunAll(void);
+void SSD1315_Font_Test_RunAll(void);
 
 #ifdef __cplusplus
 }

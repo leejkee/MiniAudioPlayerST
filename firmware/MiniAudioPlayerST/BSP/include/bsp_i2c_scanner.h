@@ -18,9 +18,9 @@ extern "C"
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-    /* 公开 API ------------------------------------------------------------------*/
+/* 公开 API ------------------------------------------------------------------*/
 
-    /**
+/**
   * @brief  扫描 I2C1 总线, 打印所有应答的设备地址
   * @param  hi2c: I2C 句柄指针 (CubeMX 生成, 例如 &hi2c1)
   * @param  timeout: 单次探测超时时间 (毫秒), 建议 10ms
@@ -28,7 +28,7 @@ extern "C"
   * @note   地址范围 0x01 ~ 0x7F (7-bit), 会跳过保留地址段。
   *         探测结果通过 BSP_DEBUG_PRINTF 宏输出, 需 BSP_DEBUG_UART=1。
   */
-    uint8_t BSP_I2C_Scanner_Scan(I2C_HandleTypeDef *hi2c, uint32_t timeout);
+uint8_t BSP_I2C_Scanner_Scan(I2C_HandleTypeDef *hi2c, uint32_t timeout);
 
 #ifdef __cplusplus
 }

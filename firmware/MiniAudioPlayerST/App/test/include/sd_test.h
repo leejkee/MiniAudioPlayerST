@@ -15,7 +15,7 @@ extern "C"
 
 #include "main.h"
 
-    /**
+/**
   * @brief  SD 卡测试入口 (由 main.c 一次性调用)
   * @note   测试流程:
   *          1. 挂载文件系统
@@ -23,7 +23,7 @@ extern "C"
   *          3. 卸载文件系统
   *         全程通过串口 (BSP_DEBUG_PRINTF) 输出结果
   */
-    void SD_Test_Run(void);
+void SD_Test_Run(void);
 
 #ifdef __cplusplus
 }

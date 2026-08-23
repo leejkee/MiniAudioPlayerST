@@ -8,9 +8,9 @@ extern "C"
 
 #include "main.h"
 
-    void Playlist_Test_Init(void);
+void Playlist_Test_Init(void);
 
-    void Playlist_Test_Run(void);
+void Playlist_Test_Run(void);
 
 #ifdef __cplusplus
 }

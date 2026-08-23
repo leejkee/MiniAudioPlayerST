@@ -8,9 +8,9 @@ extern "C"
 
 #include "main.h"
 
-    void App_Init(void);
+void App_Init(void);
 
-    void App_Run(void);
+void App_Run(void);
 
 #ifdef __cplusplus
 }

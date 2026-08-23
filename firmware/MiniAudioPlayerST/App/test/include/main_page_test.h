@@ -13,15 +13,15 @@ extern "C"
 {
 #endif
 
-    /**
+/**
   * @brief  初始化 OLED、按键、播放器并进入主界面
   */
-    void MainPage_Test_Init(void);
+void MainPage_Test_Init(void);
 
-    /**
+/**
   * @brief  驱动音频和 UI，并通过串口输出主界面核对信息
   */
-    void MainPage_Test_Run(void);
+void MainPage_Test_Run(void);
 
 #ifdef __cplusplus
 }

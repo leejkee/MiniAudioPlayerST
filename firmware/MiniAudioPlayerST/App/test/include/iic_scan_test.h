@@ -6,7 +6,7 @@ extern "C"
 #endif
 #include "main.h"
 
-    void I2C_Scanner_Test(I2C_HandleTypeDef *hi2c, uint32_t timeout);
+void I2C_Scanner_Test(I2C_HandleTypeDef *hi2c, uint32_t timeout);
 
 #ifdef __cplusplus
 }

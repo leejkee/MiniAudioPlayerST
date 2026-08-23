@@ -21,11 +21,11 @@ extern "C"
 #define FONT_ICON_SMALL_VISUAL_SIZE 12
 #define FONT_ICON_LARGE_VISUAL_SIZE 16
 
-    extern const uint8_t font_icon_small_16x16[FONT_ICON_GLYPH_COUNT][FONT_ICON_BYTES_PER_GLYPH];
-    extern const uint8_t font_icon_large_16x16[FONT_ICON_GLYPH_COUNT][FONT_ICON_BYTES_PER_GLYPH];
+extern const uint8_t font_icon_small_16x16[FONT_ICON_GLYPH_COUNT][FONT_ICON_BYTES_PER_GLYPH];
+extern const uint8_t font_icon_large_16x16[FONT_ICON_GLYPH_COUNT][FONT_ICON_BYTES_PER_GLYPH];
 
-    /* Returns the glyph index, or FONT_ICON_NOT_FOUND. */
-    uint16_t             font_icon_lookup(uint32_t unicode);
+/* Returns the glyph index, or FONT_ICON_NOT_FOUND. */
+uint16_t             font_icon_lookup(uint32_t unicode);
 
 #ifdef __cplusplus
 }

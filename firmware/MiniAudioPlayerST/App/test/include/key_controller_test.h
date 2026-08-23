@@ -13,8 +13,8 @@ extern "C"
 {
 #endif
 
-    void Key_Controller_Test_Init(void);
-    void Key_Controller_Test_Loop(void);
+void Key_Controller_Test_Init(void);
+void Key_Controller_Test_Loop(void);
 
 #ifdef __cplusplus
 }

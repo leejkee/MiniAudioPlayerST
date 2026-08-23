@@ -11,14 +11,14 @@ extern "C"
 
 /* Test Inlcude Begin */
 #include "main.h"
-    /* Test Inlcude End */
+/* Test Inlcude End */
 
-    /* Test Defination Begin */
-    void Test_Init(void);
+/* Test Defination Begin */
+void Test_Init(void);
 
-    void Test_Run(void);
+void Test_Run(void);
 
-    /* Test Defination End */
+/* Test Defination End */
 
 #ifdef __cplusplus
 }

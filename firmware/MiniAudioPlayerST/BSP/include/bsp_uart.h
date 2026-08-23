@@ -18,14 +18,14 @@ extern "C"
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-    /* 公开 API ------------------------------------------------------------------*/
+/* 公开 API ------------------------------------------------------------------*/
 
-    /**
+/**
   * @brief  调试串口初始化
   * @note   仅在 BSP_DEBUG_UART=1 时激活 printf 重定向，
   *         USART2 硬件初始化由 CubeMX 生成的 MX_USART2_UART_Init() 负责。
   */
-    void BSP_UART_Init(void);
+void BSP_UART_Init(void);
 
 #ifdef __cplusplus
 }

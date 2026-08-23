@@ -8,7 +8,7 @@ extern "C"
 
 #include "ui_render.h"
 
-    extern PageHandler_t Page_Main;
+extern PageHandler_t Page_Main;
 
 #ifdef __cplusplus
 }
