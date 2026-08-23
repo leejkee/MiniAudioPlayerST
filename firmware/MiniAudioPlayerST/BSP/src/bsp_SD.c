@@ -513,8 +513,8 @@ static uint8_t SD_ParseCSD(void)
         /* ---- CSD V1.0 (SDSC) ---- */
         uint8_t  read_bl_len = csd[5] & 0x0F;
         uint16_t c_size_v1   = ((uint16_t)(csd[6] & 0x03) << 10) | ((uint16_t)csd[7] << 2) |
-                               ((uint16_t)(csd[8] & 0xC0) >> 6);
-        uint8_t  c_size_mult = ((csd[9] & 0x03) << 1) | ((csd[10] & 0x80) >> 7);
+                             ((uint16_t)(csd[8] & 0xC0) >> 6);
+        uint8_t c_size_mult = ((csd[9] & 0x03) << 1) | ((csd[10] & 0x80) >> 7);
 
         sd.sector_count = ((uint32_t)c_size_v1 + 1) * (1UL << (c_size_mult + 2)) *
                           (1UL << (read_bl_len - 9));

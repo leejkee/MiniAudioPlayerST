@@ -368,11 +368,11 @@ static uint8_t MP3_FindFirstFrame(FIL *file, uint32_t search_start, uint32_t aud
             *frame_offset = candidate_offset;
             *first_frame  = candidate;
             *is_cbr       = ((third_offset < audio_end) &&
-                             (MP3_ReadFrameAt(file, third_offset, &third) != 0U) &&
-                             (third.version_id == candidate.version_id) &&
-                             (third.sample_rate_hz == candidate.sample_rate_hz) &&
-                             (next.bitrate_bps == candidate.bitrate_bps) &&
-                             (third.bitrate_bps == candidate.bitrate_bps))
+                       (MP3_ReadFrameAt(file, third_offset, &third) != 0U) &&
+                       (third.version_id == candidate.version_id) &&
+                       (third.sample_rate_hz == candidate.sample_rate_hz) &&
+                       (next.bitrate_bps == candidate.bitrate_bps) &&
+                       (third.bitrate_bps == candidate.bitrate_bps))
                                 ? 1U
                                 : 0U;
             return 1U;
