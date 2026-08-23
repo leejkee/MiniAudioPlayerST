@@ -4,13 +4,14 @@
 # Scope: format only App/, BSP/ (and their tests). Do NOT format Core/, Drivers/,
 #        MDK-ARM/, or generated font sources — see cmake/clang-format.cmake.
 #
-# Recommended clang-format: 15+ (enum-style AlignConsecutive* values).
+# Recommended clang-format: 18.x (matching CI).
 # Cross-platform commands:
 #   Format: cmake -DCLANG_FORMAT_MODE=FORMAT -P cmake/clang-format.cmake
 #   Check:  cmake -DCLANG_FORMAT_MODE=CHECK -P cmake/clang-format.cmake
 #
 ---
-Language: C
+# clang-format 18 uses the Cpp parser for both C and C++ sources.
+Language: Cpp
 BasedOnStyle: LLVM
 
 # --- Layout ---
