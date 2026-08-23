@@ -2,16 +2,16 @@
 #define __BSP_SSD1315_TEST_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "main.h"
 
-void SSD1315_Test_RunAll(void);
-
+    void SSD1315_Test_RunAll(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __BSP_SSD1315_TEST_H__
+#endif  // __BSP_SSD1315_TEST_H__

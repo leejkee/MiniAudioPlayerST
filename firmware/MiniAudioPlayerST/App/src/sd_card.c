@@ -19,14 +19,15 @@
 /* 内部辅助 ----------------------------------------------------------------*/
 
 /* 音频目录扫描共用 LFN 缓冲，当前裸机实现不支持并发目录扫描。 */
-static WCHAR audio_lfn_buf[_MAX_LFN + 1];
+static WCHAR       audio_lfn_buf[_MAX_LFN + 1];
 
 /**
   * @brief  将 FatFs FRESULT 映射为应用层 SD_Status_t
   */
 static SD_Status_t SD_MapFRESULT(FRESULT fr)
 {
-    switch (fr) {
+    switch (fr)
+    {
         case FR_OK:
             return SD_OK;
         case FR_DISK_ERR:
@@ -48,12 +49,15 @@ uint8_t SD_CountFiles(const WCHAR *path)
     FILINFO  fno   = {0};
     uint32_t count = 0;
 
-    if (f_opendir(&dir, path) != FR_OK) {
+    if (f_opendir(&dir, path) != FR_OK)
+    {
         return 0;
     }
 
-    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0) {
-        if (!(fno.fattrib & AM_DIR)) {
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0)
+    {
+        if (!(fno.fattrib & AM_DIR))
+        {
             count++;
         }
     }
@@ -69,7 +73,8 @@ uint8_t SD_CountFiles(const WCHAR *path)
 static void path_to_tchar(const char *src, TCHAR *dst, uint16_t max_len)
 {
     uint16_t i;
-    for (i = 0; i < max_len - 1 && src[i]; i++) {
+    for (i = 0; i < max_len - 1 && src[i]; i++)
+    {
         dst[i] = (WCHAR)(unsigned char)src[i];
     }
     dst[i] = 0;
@@ -78,7 +83,8 @@ static void path_to_tchar(const char *src, TCHAR *dst, uint16_t max_len)
 static void wchar_ncpy(WCHAR *dst, const WCHAR *src, int max_chars)
 {
     int i;
-    for (i = 0; i < max_chars - 1 && src[i] != 0; i++) {
+    for (i = 0; i < max_chars - 1 && src[i] != 0; i++)
+    {
         dst[i] = src[i];
     }
     dst[i] = 0;
@@ -86,7 +92,8 @@ static void wchar_ncpy(WCHAR *dst, const WCHAR *src, int max_chars)
 
 static WCHAR ascii_to_lower(WCHAR ch)
 {
-    if (ch >= (WCHAR)'A' && ch <= (WCHAR)'Z') {
+    if (ch >= (WCHAR)'A' && ch <= (WCHAR)'Z')
+    {
         return ch + ((WCHAR)'a' - (WCHAR)'A');
     }
     return ch;
@@ -96,26 +103,30 @@ static uint8_t is_audio_file_name(const WCHAR *name)
 {
     const WCHAR *extension = NULL;
 
-    if (name == NULL) {
+    if (name == NULL)
+    {
         return 0U;
     }
 
-    while (*name != 0U) {
-        if (*name == (WCHAR)'.') {
+    while (*name != 0U)
+    {
+        if (*name == (WCHAR)'.')
+        {
             extension = name;
         }
         name++;
     }
 
-    if (extension == NULL) {
+    if (extension == NULL)
+    {
         return 0U;
     }
 
-    if ((ascii_to_lower(extension[0]) == (WCHAR)'.')
-        && (ascii_to_lower(extension[1]) == (WCHAR)'m')
-        && (ascii_to_lower(extension[2]) == (WCHAR)'p')
-        && (ascii_to_lower(extension[3]) == (WCHAR)'3')
-        && (extension[4] == 0U)) {
+    if ((ascii_to_lower(extension[0]) == (WCHAR)'.') &&
+        (ascii_to_lower(extension[1]) == (WCHAR)'m') &&
+        (ascii_to_lower(extension[2]) == (WCHAR)'p') &&
+        (ascii_to_lower(extension[3]) == (WCHAR)'3') && (extension[4] == 0U))
+    {
         return 1U;
     }
 
@@ -123,40 +134,44 @@ static uint8_t is_audio_file_name(const WCHAR *name)
 }
 
 // 拼接文件路径，返回 1 表示成功，0 表示失败 (路径过长)
-static uint8_t build_file_path(const WCHAR *directory,
-                               const WCHAR *name,
-                               WCHAR *path,
+static uint8_t build_file_path(const WCHAR *directory, const WCHAR *name, WCHAR *path,
                                uint16_t path_capacity)
 {
     uint16_t length = 0U;
 
-    if ((directory == NULL) || (name == NULL)
-        || (path == NULL) || (path_capacity == 0U)) {
+    if ((directory == NULL) || (name == NULL) || (path == NULL) || (path_capacity == 0U))
+    {
         return 0U;
     }
 
-    while ((*directory != 0U) && (length + 1U < path_capacity)) {
+    while ((*directory != 0U) && (length + 1U < path_capacity))
+    {
         path[length++] = *directory++;
     }
 
     // length + 1 >= path_capacity, 越界，说明路径过长，直接返回失败，并将 path[0] 置为 0
-    if (*directory != 0U) {
+    if (*directory != 0U)
+    {
         path[0] = 0U;
         return 0U;
     }
 
-    if ((length > 0U) && (path[length - 1U] != (WCHAR)'/')) {
-        if (length + 1U >= path_capacity) {
+    if ((length > 0U) && (path[length - 1U] != (WCHAR)'/'))
+    {
+        if (length + 1U >= path_capacity)
+        {
             path[0] = 0U;
             return 0U;
         }
         path[length++] = (WCHAR)'/';
     }
 
-    while ((*name != 0U) && (length + 1U < path_capacity)) {
+    while ((*name != 0U) && (length + 1U < path_capacity))
+    {
         path[length++] = *name++;
     }
-    if (*name != 0U) {
+    if (*name != 0U)
+    {
         path[0] = 0U;
         return 0U;
     }
@@ -170,20 +185,27 @@ static uint8_t build_file_path(const WCHAR *directory,
  */
 static void utf16_to_utf8(const WCHAR *src, char *dst, uint16_t dst_size)
 {
-    if (!src || !dst || dst_size == 0){
+    if (!src || !dst || dst_size == 0)
+    {
         return;
     }
 
-    while (*src && dst_size > 4) {
+    while (*src && dst_size > 4)
+    {
         uint16_t ch = *src++;
-        if (ch < 0x80) {
+        if (ch < 0x80)
+        {
             *dst++ = (char)ch;
             dst_size--;
-        } else if (ch < 0x800) {
+        }
+        else if (ch < 0x800)
+        {
             *dst++ = (char)(0xC0 | (ch >> 6));
             *dst++ = (char)(0x80 | (ch & 0x3F));
             dst_size -= 2;
-        } else {
+        }
+        else
+        {
             *dst++ = (char)(0xE0 | (ch >> 12));
             *dst++ = (char)(0x80 | ((ch >> 6) & 0x3F));
             *dst++ = (char)(0x80 | (ch & 0x3F));
@@ -206,7 +228,8 @@ SD_Status_t SD_Mount(void)
     LOG_DEBUG("Mount", "Mounting file system");
 
     fr = f_mount(&USERFatFS, TUSERPath, 1);
-    if (fr != FR_OK) {
+    if (fr != FR_OK)
+    {
         LOG_DEBUG("Mount", "f_mount failed: %d", fr);
         return SD_MapFRESULT(fr);
     }
@@ -230,12 +253,14 @@ SD_Status_t SD_ReadFile(const WCHAR *path, WCHAR *buffer, uint32_t *len)
     FIL     file;
     UINT    bytes_read;
 
-    if (path == NULL || buffer == NULL || len == NULL) {
+    if (path == NULL || buffer == NULL || len == NULL)
+    {
         return SD_ERR_PARAM;
     }
 
     fr = f_open(&file, path, FA_READ | FA_OPEN_EXISTING);
-    if (fr != FR_OK) {
+    if (fr != FR_OK)
+    {
         return SD_MapFRESULT(fr);
     }
 
@@ -244,7 +269,8 @@ SD_Status_t SD_ReadFile(const WCHAR *path, WCHAR *buffer, uint32_t *len)
 
     f_close(&file);
 
-    if (fr != FR_OK) {
+    if (fr != FR_OK)
+    {
         return SD_MapFRESULT(fr);
     }
     return SD_OK;
@@ -268,7 +294,8 @@ SD_Status_t SD_Debug_ListDir(const char *path)
 #endif
     uint32_t count = 0;
 
-    if (path == NULL) {
+    if (path == NULL)
+    {
         return SD_ERR_PARAM;
     }
 
@@ -284,18 +311,22 @@ SD_Status_t SD_Debug_ListDir(const char *path)
     fno.lfsize = sizeof(lfn_buf) / sizeof(lfn_buf[0]);
 
     fr = f_opendir(&dir, tpath);
-    if (fr != FR_OK) {
+    if (fr != FR_OK)
+    {
         LOG_DEBUG("ListDir", "f_opendir(%s) failed: %d", path, fr);
         return SD_MapFRESULT(fr);
     }
 
-    while (1) {
+    while (1)
+    {
         fr = f_readdir(&dir, &fno);
-        if (fr != FR_OK || fno.fname[0] == 0) {
+        if (fr != FR_OK || fno.fname[0] == 0)
+        {
             break;
         }
 
-        if (fno.fname[0] == '.') {
+        if (fno.fname[0] == '.')
+        {
             continue;
         }
 
@@ -306,10 +337,13 @@ SD_Status_t SD_Debug_ListDir(const char *path)
         const WCHAR *sfname = fno.fname;
         const char  *display;
 
-        if (lfname && lfname[0]) {
+        if (lfname && lfname[0])
+        {
             utf16_to_utf8(lfname, utf8_buf, sizeof(utf8_buf));
             display = utf8_buf;
-        } else {
+        }
+        else
+        {
             utf16_to_utf8(sfname, utf8_buf, sizeof(utf8_buf));
             display = utf8_buf;
         }
@@ -317,25 +351,26 @@ SD_Status_t SD_Debug_ListDir(const char *path)
         const char *display = (fno.lfname && fno.lfname[0]) ? fno.lfname : fno.fname;
 #endif
 
-        if (fno.fattrib & AM_DIR) {
+        if (fno.fattrib & AM_DIR)
+        {
             LOG_DEBUG("DIR", "%s", display);
-        } else {
-            LOG_DEBUG("FILE", "%s  %lu bytes",
-                             display,
-                             (unsigned long)fno.fsize);
+        }
+        else
+        {
+            LOG_DEBUG("FILE", "%s  %lu bytes", display, (unsigned long)fno.fsize);
         }
     }
 
     f_closedir(&dir);
-    LOG_DEBUG("ListDir", "Total: %lu entries",
-                     (unsigned long)count);
+    LOG_DEBUG("ListDir", "Total: %lu entries", (unsigned long)count);
     return SD_OK;
 }
 
 uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_chars_per_entry,
                              uint32_t start_index, const WCHAR *path)
 {
-    if (list == NULL || path == NULL) {
+    if (list == NULL || path == NULL)
+    {
         return 0;
     }
 
@@ -350,26 +385,32 @@ uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_char
     fno.lfsize = sizeof(lfn_buf) / sizeof(lfn_buf[0]);
 
     fr = f_opendir(&dir, path);
-    if (fr != FR_OK) {
+    if (fr != FR_OK)
+    {
         return 0;
     }
 
-    while (1) {
+    while (1)
+    {
         fr = f_readdir(&dir, &fno);
-        if (fr != FR_OK || fno.fname[0] == 0) {
+        if (fr != FR_OK || fno.fname[0] == 0)
+        {
             break;
         }
 
-        if (fno.fname[0] == '.') {
+        if (fno.fname[0] == '.')
+        {
             continue;
         }
 
-        if (skipped < start_index) {
+        if (skipped < start_index)
+        {
             skipped++;
             continue;
         }
 
-        if (count >= max_entries) {
+        if (count >= max_entries)
+        {
             break;
         }
 
@@ -384,30 +425,35 @@ uint8_t SD_GetFileListWindow(WCHAR **list, uint8_t max_entries, uint8_t max_char
 
 uint32_t SD_CountAudioFiles(const WCHAR *path)
 {
-    DIR dir;
-    FILINFO fno = {0};
+    DIR      dir;
+    FILINFO  fno   = {0};
     uint32_t count = 0U;
 
-    if (path == NULL) {
+    if (path == NULL)
+    {
         return 0U;
     }
 
     fno.lfname = audio_lfn_buf;
     fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
 
-    if (f_opendir(&dir, path) != FR_OK) {
+    if (f_opendir(&dir, path) != FR_OK)
+    {
         return 0U;
     }
 
-    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U)
+    {
         const WCHAR *name;
 
-        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.'))
+        {
             continue;
         }
 
         name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
-        if (is_audio_file_name(name)) {
+        if (is_audio_file_name(name))
+        {
             count++;
         }
     }
@@ -416,48 +462,51 @@ uint32_t SD_CountAudioFiles(const WCHAR *path)
     return count;
 }
 
-uint8_t SD_GetAudioFileListWindow(WCHAR **list,
-                                  uint8_t max_entries,
-                                  uint16_t max_chars_per_entry,
-                                  uint32_t start_index,
-                                  const WCHAR *path)
+uint8_t SD_GetAudioFileListWindow(WCHAR **list, uint8_t max_entries, uint16_t max_chars_per_entry,
+                                  uint32_t start_index, const WCHAR *path)
 {
-    DIR dir;
-    FILINFO fno = {0};
+    DIR      dir;
+    FILINFO  fno         = {0};
     uint32_t audio_index = 0U;
-    uint8_t count = 0U;
+    uint8_t  count       = 0U;
 
-    if ((list == NULL) || (path == NULL)
-        || (max_entries == 0U) || (max_chars_per_entry == 0U)) {
+    if ((list == NULL) || (path == NULL) || (max_entries == 0U) || (max_chars_per_entry == 0U))
+    {
         return 0U;
     }
 
     fno.lfname = audio_lfn_buf;
     fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
 
-    if (f_opendir(&dir, path) != FR_OK) {
+    if (f_opendir(&dir, path) != FR_OK)
+    {
         return 0U;
     }
 
-    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U)
+    {
         const WCHAR *name;
 
-        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.'))
+        {
             continue;
         }
 
         name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
-        if (!is_audio_file_name(name)) {
+        if (!is_audio_file_name(name))
+        {
             continue;
         }
 
-        if (audio_index++ < start_index) {
+        if (audio_index++ < start_index)
+        {
             continue;
         }
 
         wchar_ncpy(list[count], name, max_chars_per_entry);
         count++;
-        if (count >= max_entries) {
+        if (count >= max_entries)
+        {
             break;
         }
     }
@@ -466,17 +515,16 @@ uint8_t SD_GetAudioFileListWindow(WCHAR **list,
     return count;
 }
 
-uint8_t SD_GetAudioFilePathByIndex(const WCHAR *directory,
-                                   uint32_t index,
-                                   WCHAR *path,
+uint8_t SD_GetAudioFilePathByIndex(const WCHAR *directory, uint32_t index, WCHAR *path,
                                    uint16_t path_capacity)
 {
-    DIR dir;
-    FILINFO fno = {0};
+    DIR      dir;
+    FILINFO  fno         = {0};
     uint32_t audio_index = 0U;
-    uint8_t result = 0U;
+    uint8_t  result      = 0U;
 
-    if ((directory == NULL) || (path == NULL) || (path_capacity == 0U)) {
+    if ((directory == NULL) || (path == NULL) || (path_capacity == 0U))
+    {
         return 0U;
     }
     path[0] = 0U;
@@ -484,27 +532,29 @@ uint8_t SD_GetAudioFilePathByIndex(const WCHAR *directory,
     fno.lfname = audio_lfn_buf;
     fno.lfsize = sizeof(audio_lfn_buf) / sizeof(audio_lfn_buf[0]);
 
-    if (f_opendir(&dir, directory) != FR_OK) {
+    if (f_opendir(&dir, directory) != FR_OK)
+    {
         return 0U;
     }
 
-    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U) {
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0U)
+    {
         const WCHAR *name;
 
-        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.')) {
+        if ((fno.fattrib & AM_DIR) || (fno.fname[0] == (WCHAR)'.'))
+        {
             continue;
         }
 
         name = (fno.lfname[0] != 0U) ? fno.lfname : fno.fname;
-        if (!is_audio_file_name(name)) {
+        if (!is_audio_file_name(name))
+        {
             continue;
         }
 
-        if (audio_index == index) {
-            result = build_file_path(directory,
-                                     name,
-                                     path,
-                                     path_capacity);
+        if (audio_index == index)
+        {
+            result = build_file_path(directory, name, path, path_capacity);
             break;
         }
         audio_index++;

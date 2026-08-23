@@ -2,7 +2,8 @@
 #define __TEST_MAIN_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /* Set to 1 to run Test_Main, or 0 to run the application. */
@@ -10,15 +11,14 @@ extern "C" {
 
 /* Test Inlcude Begin */
 #include "main.h"
-/* Test Inlcude End */
+    /* Test Inlcude End */
 
+    /* Test Defination Begin */
+    void Test_Init(void);
 
-/* Test Defination Begin */
-void Test_Init(void);
+    void Test_Run(void);
 
-void Test_Run(void);
-
-/* Test Defination End */
+    /* Test Defination End */
 
 #ifdef __cplusplus
 }

@@ -2,15 +2,12 @@
 #
 # Base: LLVM, customized for STM32 C firmware.
 # Scope: format only App/, BSP/ (and their tests). Do NOT format Core/, Drivers/,
-#        MDK-ARM/, or generated font sources — see .clang-format-ignore and CI paths.
+#        MDK-ARM/, or generated font sources — see cmake/clang-format.cmake.
 #
 # Recommended clang-format: 15+ (enum-style AlignConsecutive* values).
-# CI example (check only, fail on drift):
-#   clang-format --dry-run --Werror $(git ls-files \
-#     'firmware/MiniAudioPlayerST/App/**/*.[ch]' \
-#     'firmware/MiniAudioPlayerST/BSP/**/*.[ch]')
-# Exclude generated fonts if matched by glob:
-#   ... | findstr /V /I "font_cn.c font_en.c font_file_cn.c font_cn.h font_en.h font_file_cn.h"
+# Cross-platform commands:
+#   Format: cmake -DCLANG_FORMAT_MODE=FORMAT -P cmake/clang-format.cmake
+#   Check:  cmake -DCLANG_FORMAT_MODE=CHECK -P cmake/clang-format.cmake
 #
 ---
 Language: C
@@ -24,27 +21,8 @@ ColumnLimit: 100
 ContinuationIndentWidth: 4
 AccessModifierOffset: -4
 
-# --- Braces (function/type on new line; if/for/while attached) ---
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterCaseLabel: false
-  AfterClass: true
-  AfterControlStatement: Never
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterObjCDeclaration: false
-  AfterStruct: true
-  AfterUnion: true
-  AfterExternBlock: false
-  BeforeCatch: false
-  BeforeElse: false
-  BeforeLambdaBody: false
-  BeforeWhile: false
-  IndentBraces: false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: false
-  SplitEmptyNamespace: true
+# --- Braces (CubeMX-style Allman layout) ---
+BreakBeforeBraces: Allman
 
 # --- Pointers and spacing ---
 PointerAlignment: Right
@@ -80,8 +58,8 @@ AlignArrayOfStructures: None
 # --- Short constructs: prefer multi-line for reviewability ---
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortEnumsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AllowAllParametersOfDeclarationOnNextLine: true
@@ -126,7 +104,7 @@ PenaltyReturnTypeOnItsOwnLine: 60
 
 # --- Misc ---
 FixNamespaceComments: true
-InsertBraces: false
+InsertBraces: true
 RemoveBracesLLVM: false
 Standard: Latest
 ...

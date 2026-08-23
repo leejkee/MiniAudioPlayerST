@@ -31,7 +31,8 @@ void SD_Test_Run(void)
 
     /* ---- 步骤 1: 挂载文件系统 ---- */
     LOG_DEBUG("TEST 1", "Mounting SD card...");
-    if (SD_Mount() != SD_OK) {
+    if (SD_Mount() != SD_OK)
+    {
         LOG_DEBUG("TEST 1", "Mount FAILED - check SD card");
         LOG_DEBUG("Message", "");
         LOG_DEBUG("Banner", "SD Card Test Aborted");

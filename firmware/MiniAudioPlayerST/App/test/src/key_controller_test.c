@@ -16,7 +16,6 @@
 
 #include "bsp_key.h"
 
-
 void Key_Controller_Test_Init(void)
 {
     LOG_DEBUG("Init", "Initializing SSD1315");
@@ -28,29 +27,32 @@ void Key_Controller_Test_Init(void)
 
 void Key_Controller_Test_Loop(void)
 {
-    if (BSP_Key_GetEvent(KEY_MENU) == KEY_EDGE_RELEASE) {
+    if (BSP_Key_GetEvent(KEY_MENU) == KEY_EDGE_RELEASE)
+    {
         LOG_DEBUG("Key", "MENU pressed");
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "Menu pressed", 16);
     }
 
-    if (BSP_Key_GetEvent(KEY_OK) == KEY_EDGE_RELEASE) {
+    if (BSP_Key_GetEvent(KEY_OK) == KEY_EDGE_RELEASE)
+    {
         LOG_DEBUG("Key", "OK pressed");
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "OK pressed", 16);
     }
 
-    if (BSP_Key_GetEvent(KEY_L) == KEY_EDGE_RELEASE) {
+    if (BSP_Key_GetEvent(KEY_L) == KEY_EDGE_RELEASE)
+    {
         LOG_DEBUG("Key", "L pressed");
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "L pressed", 16);
     }
 
-    if (BSP_Key_GetEvent(KEY_R) == KEY_EDGE_RELEASE) {
+    if (BSP_Key_GetEvent(KEY_R) == KEY_EDGE_RELEASE)
+    {
         LOG_DEBUG("Key", "R pressed");
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "R pressed", 16);
     }
     BSP_SSD1315_Refresh();
-
 }

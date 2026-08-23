@@ -32,8 +32,7 @@ int _write(int file, char *data, int length)
         return 0;
     }
 
-    if (HAL_UART_Transmit(&huart2, (uint8_t *)data, (uint16_t)length,
-                          HAL_MAX_DELAY) != HAL_OK)
+    if (HAL_UART_Transmit(&huart2, (uint8_t *)data, (uint16_t)length, HAL_MAX_DELAY) != HAL_OK)
     {
         return -1;
     }

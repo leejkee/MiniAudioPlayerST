@@ -2,14 +2,15 @@
 #define __PLAYLIST_TEST_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "main.h"
 
-void Playlist_Test_Init(void);
+    void Playlist_Test_Init(void);
 
-void Playlist_Test_Run(void);
+    void Playlist_Test_Run(void);
 
 #ifdef __cplusplus
 }

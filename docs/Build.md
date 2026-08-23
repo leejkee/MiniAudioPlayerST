@@ -31,6 +31,38 @@ Linux 和 Windows 均需要：
 
 STM32CubeMX 和 Keil MDK-ARM 只在重新生成 CubeMX 代码或使用 Keil/ARMCC 构建时需要。
 
+### 代码格式化
+
+本项目推荐使用 clang-format 18。格式化工具由跨平台 CMake 脚本提供，不需要配置 ARM 工具链或生成构建目录。
+
+在仓库根目录格式化代码：
+
+```bash
+cmake -DCLANG_FORMAT_MODE=FORMAT -P cmake/clang-format.cmake
+```
+
+只检查格式而不修改文件：
+
+```bash
+cmake -DCLANG_FORMAT_MODE=CHECK -P cmake/clang-format.cmake
+```
+
+`CHECK` 是默认模式，因此也可简写为：
+
+```bash
+cmake -P cmake/clang-format.cmake
+```
+
+脚本会依次查找 `clang-format-18` 和 `clang-format`。如果可执行文件未加入 `PATH`，可显式指定路径：
+
+```bash
+cmake -DCLANG_FORMAT_EXECUTABLE=/path/to/clang-format -DCLANG_FORMAT_MODE=FORMAT -P cmake/clang-format.cmake
+```
+
+格式化范围仅包含 `firmware/MiniAudioPlayerST/App/` 和 `firmware/MiniAudioPlayerST/BSP/` 下的 C/H 文件，并排除自动生成的字库文件。`Core/` 目录（包括 `Core/Src/main.c`）不会被格式化。
+
+提交代码前应先在本地执行 `FORMAT`，检查差异后再提交。GitHub Actions 会执行 `CHECK` 作为合入前的格式校验，不会在 CI 中自动修改或提交源码。
+
 ### VS Code 补全与跳转
 
 > 无论您是否选择使用gcc工具链，我们推荐您安装arm-gcc编译器到您的机器上，这样您可以直接使用我们提供的CMake来生成 `compile_command.json`，这样您可以直接通过 `vscode` + `clangd插件` 获得本项目代码的lsp 补全、跳转支持

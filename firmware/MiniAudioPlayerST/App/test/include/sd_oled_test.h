@@ -14,24 +14,25 @@
 #define __SD_OLED_TEST_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "main.h"
 
-/**
+    /**
   * @brief  测试初始化 — 挂载 SD、初始化 OLED、切换到文件列表页面
   * @note   在 main() 外设初始化完成后调用一次。
   *         BSP_Key_Init() 必须已调用 (按键消抖定时器已启动)。
   */
-void SD_OLED_Test_Init(void);
+    void SD_OLED_Test_Init(void);
 
-/**
+    /**
   * @brief  测试主循环 — 轮询按键并分发给当前页面
   * @note   在 main() 的 while(1) 中持续调用。
   *         内部调用 UI_Render_Tick() 完成按键 → 页面分发。
   */
-void SD_OLED_Test_Run(void);
+    void SD_OLED_Test_Run(void);
 
 #ifdef __cplusplus
 }

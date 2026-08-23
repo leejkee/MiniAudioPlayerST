@@ -2,17 +2,18 @@
 #include "bsp_ssd1315.h"
 #include "bsp_key.h"
 
-#define UI_NAV_HISTORY_DEPTH  4U
+#define UI_NAV_HISTORY_DEPTH 4U
 
 static PageHandler_t *current_page = NULL;
 static PageHandler_t *page_history[UI_NAV_HISTORY_DEPTH];
-static uint8_t page_history_count = 0U;
+static uint8_t        page_history_count = 0U;
 
-static void _ActivatePage(PageHandler_t *page)
+static void           _ActivatePage(PageHandler_t *page)
 {
     current_page = page;
     BSP_SSD1315_ClearBuffer();
-    if (current_page->on_enter != NULL) {
+    if (current_page->on_enter != NULL)
+    {
         current_page->on_enter();
     }
     BSP_SSD1315_Refresh();
@@ -20,7 +21,8 @@ static void _ActivatePage(PageHandler_t *page)
 
 void UI_Render_SwitchPage(PageHandler_t *page)
 {
-    if (page == NULL) {
+    if (page == NULL)
+    {
         return;
     }
 
@@ -30,16 +32,19 @@ void UI_Render_SwitchPage(PageHandler_t *page)
 
 uint8_t UI_Render_PushPage(PageHandler_t *page)
 {
-    if ((page == NULL) || (page == current_page)) {
+    if ((page == NULL) || (page == current_page))
+    {
         return 0U;
     }
 
-    if (current_page == NULL) {
+    if (current_page == NULL)
+    {
         UI_Render_SwitchPage(page);
         return 1U;
     }
 
-    if (page_history_count >= UI_NAV_HISTORY_DEPTH) {
+    if (page_history_count >= UI_NAV_HISTORY_DEPTH)
+    {
         return 0U;
     }
 
@@ -51,7 +56,8 @@ uint8_t UI_Render_PushPage(PageHandler_t *page)
 
 uint8_t UI_Render_PopPage(void)
 {
-    if (page_history_count == 0U) {
+    if (page_history_count == 0U)
+    {
         return 0U;
     }
 
@@ -73,23 +79,31 @@ uint8_t UI_Render_CanGoBack(void)
   */
 void UI_Render_Tick(void)
 {
-    if (current_page == NULL) {
+    if (current_page == NULL)
+    {
         return;
     }
 
-    if (current_page->on_tick != NULL) {
+    if (current_page->on_tick != NULL)
+    {
         current_page->on_tick();
     }
 
-    if (current_page->on_key == NULL) {
+    if (current_page->on_key == NULL)
+    {
         return;
     }
 
-    for (bsp_key_id_t id = 0; id < KEY_COUNT; id++) {
-        if (BSP_Key_GetEvent(id) == KEY_EDGE_RELEASE) {
-            if ((id == KEY_MENU) && (UI_Render_CanGoBack() != 0U)) {
+    for (bsp_key_id_t id = 0; id < KEY_COUNT; id++)
+    {
+        if (BSP_Key_GetEvent(id) == KEY_EDGE_RELEASE)
+        {
+            if ((id == KEY_MENU) && (UI_Render_CanGoBack() != 0U))
+            {
                 (void)UI_Render_PopPage();
-            } else {
+            }
+            else
+            {
                 current_page->on_key(id);
             }
         }

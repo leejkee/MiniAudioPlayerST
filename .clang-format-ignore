@@ -1,5 +1,5 @@
 # Paths excluded from clang-format (requires clang-format 18+).
-# CI should still pass explicit file globs so older toolchains stay safe.
+# The CMake helper applies the same scope explicitly for consistent cross-platform behavior.
 
 # CubeMX generated application core
 firmware/MiniAudioPlayerST/Core/**

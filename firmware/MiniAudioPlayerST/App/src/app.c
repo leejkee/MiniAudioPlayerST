@@ -10,7 +10,8 @@
 void App_EnterFatalError()
 {
     // Show Msg on OLED
-    while (1) {
+    while (1)
+    {
     }
 }
 
@@ -21,16 +22,21 @@ void App_Init()
     BSP_Key_Init();
     player_status = Player_Init();
 
-    if (player_status == PLAYER_OK) {
+    if (player_status == PLAYER_OK)
+    {
         UI_Render_SwitchPage(&Page_Main);
-    } else {
+    }
+    else
+    {
         App_EnterFatalError();
     }
 }
 
-void App_Run() {
+void App_Run()
+{
     static uint8_t loop_reported;
-    if (loop_reported == 0U) {
+    if (loop_reported == 0U)
+    {
         LOG_DEBUG("Run", "Main loop entered");
         loop_reported = 1U;
     }

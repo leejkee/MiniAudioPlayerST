@@ -23,7 +23,7 @@
 #define LOG_MODULE "SSD1315Test"
 
 /* 测试辅助宏 ----------------------------------------------------------------*/
-#define TEST_DELAY      2000    /* 每步停顿 2 秒, 方便观察 */
+#define TEST_DELAY 2000 /* 每步停顿 2 秒, 方便观察 */
 
 /*
  * 注意: LOG_DEBUG 输出依赖 bsp_uart.c 的 fputc 重定向 (USART2)。
@@ -46,7 +46,7 @@ void SSD1315_Test_RunAll(void)
     LOG_DEBUG("Banner", "SSD1315 Driver Test Start");
     LOG_DEBUG("TEST 0", "BSP_SSD1315_Init ...");
 
-    BSP_SSD1315_Init();  /* Init 内部已调用 Clear + Refresh */
+    BSP_SSD1315_Init(); /* Init 内部已调用 Clear + Refresh */
 
     LOG_DEBUG("PASS", "Init complete. Screen should be BLACK.");
     HAL_Delay(TEST_DELAY);
@@ -57,11 +57,11 @@ void SSD1315_Test_RunAll(void)
      * ======================================================================== */
     LOG_DEBUG("TEST 1", "Draw 5 points: 4 corners + center ...");
 
-    BSP_SSD1315_DrawPoint(0, 0);      /* 左上角 */
-    BSP_SSD1315_DrawPoint(127, 0);    /* 右上角 */
-    BSP_SSD1315_DrawPoint(0, 63);     /* 左下角 */
-    BSP_SSD1315_DrawPoint(127, 63);   /* 右下角 */
-    BSP_SSD1315_DrawPoint(64, 32);    /* 中心   */
+    BSP_SSD1315_DrawPoint(0, 0);    /* 左上角 */
+    BSP_SSD1315_DrawPoint(127, 0);  /* 右上角 */
+    BSP_SSD1315_DrawPoint(0, 63);   /* 左下角 */
+    BSP_SSD1315_DrawPoint(127, 63); /* 右下角 */
+    BSP_SSD1315_DrawPoint(64, 32);  /* 中心   */
     BSP_SSD1315_Refresh();
 
     LOG_DEBUG("PASS", "5 white dots should be visible.");
@@ -83,7 +83,7 @@ void SSD1315_Test_RunAll(void)
      * ======================================================================== */
     LOG_DEBUG("TEST 3", "BSP_SSD1315_Clear ...");
 
-    BSP_SSD1315_Clear();  /* Clear 内部已调用 Refresh */
+    BSP_SSD1315_Clear(); /* Clear 内部已调用 Refresh */
 
     LOG_DEBUG("PASS", "Screen should be ALL BLACK.");
     HAL_Delay(TEST_DELAY);
@@ -93,12 +93,12 @@ void SSD1315_Test_RunAll(void)
      * ======================================================================== */
     LOG_DEBUG("TEST 4", "Draw lines: H / V / diagonal ...");
 
-    BSP_SSD1315_DrawLine(0, 10, 127, 10);   /* 水平线 (上)   */
-    BSP_SSD1315_DrawLine(0, 53, 127, 53);   /* 水平线 (下)   */
-    BSP_SSD1315_DrawLine(10, 0, 10, 63);    /* 垂直线 (左)   */
-    BSP_SSD1315_DrawLine(117, 0, 117, 63);  /* 垂直线 (右)   */
-    BSP_SSD1315_DrawLine(0, 0, 127, 63);    /* 对角线 (左上→右下) */
-    BSP_SSD1315_DrawLine(127, 0, 0, 63);    /* 对角线 (右上→左下) */
+    BSP_SSD1315_DrawLine(0, 10, 127, 10);  /* 水平线 (上)   */
+    BSP_SSD1315_DrawLine(0, 53, 127, 53);  /* 水平线 (下)   */
+    BSP_SSD1315_DrawLine(10, 0, 10, 63);   /* 垂直线 (左)   */
+    BSP_SSD1315_DrawLine(117, 0, 117, 63); /* 垂直线 (右)   */
+    BSP_SSD1315_DrawLine(0, 0, 127, 63);   /* 对角线 (左上→右下) */
+    BSP_SSD1315_DrawLine(127, 0, 0, 63);   /* 对角线 (右上→左下) */
     BSP_SSD1315_Refresh();
 
     LOG_DEBUG("PASS", "6 lines forming a rectangle + X should be visible.");
@@ -111,9 +111,9 @@ void SSD1315_Test_RunAll(void)
 
     BSP_SSD1315_Clear();
 
-    BSP_SSD1315_DrawCircle(32, 32, 30);   /* 左圆, r=30 */
-    BSP_SSD1315_DrawCircle(96, 32, 30);   /* 右圆, r=30 */
-    BSP_SSD1315_DrawCircle(64, 32, 10);   /* 中心小圆, r=10 */
+    BSP_SSD1315_DrawCircle(32, 32, 30); /* 左圆, r=30 */
+    BSP_SSD1315_DrawCircle(96, 32, 30); /* 右圆, r=30 */
+    BSP_SSD1315_DrawCircle(64, 32, 10); /* 中心小圆, r=10 */
     BSP_SSD1315_Refresh();
 
     LOG_DEBUG("PASS", "3 circles should be visible.");
@@ -124,11 +124,11 @@ void SSD1315_Test_RunAll(void)
      * ======================================================================== */
     LOG_DEBUG("TEST 6", "Color inversion ...");
 
-    BSP_SSD1315_ColorTurn(1);  /* A7: 反相显示 */
+    BSP_SSD1315_ColorTurn(1); /* A7: 反相显示 */
     LOG_DEBUG("PASS", "Screen INVERTED (black bg -> white bg).");
     HAL_Delay(TEST_DELAY);
 
-    BSP_SSD1315_ColorTurn(0);  /* A6: 正常显示 */
+    BSP_SSD1315_ColorTurn(0); /* A6: 正常显示 */
     LOG_DEBUG("PASS", "Screen NORMAL again.");
     HAL_Delay(TEST_DELAY);
 
@@ -151,8 +151,10 @@ void SSD1315_Test_RunAll(void)
     LOG_DEBUG("TEST 8", "Full-screen fill pattern ...");
 
     BSP_SSD1315_Clear();
-    for (uint8_t y = 0; y < 64; y++) {
-        for (uint8_t x = 0; x < 128; x++) {
+    for (uint8_t y = 0; y < 64; y++)
+    {
+        for (uint8_t x = 0; x < 128; x++)
+        {
             BSP_SSD1315_DrawPoint(x, y);
         }
     }
@@ -170,8 +172,10 @@ void SSD1315_Test_RunAll(void)
      * ======================================================================== */
     LOG_DEBUG("TEST 9", "Vertical stripes (every 8 columns) ...");
 
-    for (uint8_t x = 0; x < 128; x += 8) {
-        for (uint8_t y = 0; y < 64; y++) {
+    for (uint8_t x = 0; x < 128; x += 8)
+    {
+        for (uint8_t y = 0; y < 64; y++)
+        {
             BSP_SSD1315_DrawPoint(x, y);
         }
     }
@@ -186,8 +190,10 @@ void SSD1315_Test_RunAll(void)
     LOG_DEBUG("TEST 10", "Horizontal stripes (every 8 rows) ...");
 
     BSP_SSD1315_Clear();
-    for (uint8_t y = 0; y < 64; y += 8) {
-        for (uint8_t x = 0; x < 128; x++) {
+    for (uint8_t y = 0; y < 64; y += 8)
+    {
+        for (uint8_t x = 0; x < 128; x++)
+        {
             BSP_SSD1315_DrawPoint(x, y);
         }
     }
@@ -210,7 +216,7 @@ void SSD1315_Test_RunAll(void)
     /* 越界坐标: SetPixel 不做裁剪, 写越界会污染内存!
      * 这里仅验证不会 HardFault, 不要依赖此行为。 */
     /* 以下两行故意越界, 仅验证不挂死, 不做 PASS/FAIL 判断 */
-    /* BSP_SSD1315_DrawPoint(128, 64); */  /* 取消注释验证越界行为 */
+    /* BSP_SSD1315_DrawPoint(128, 64); */ /* 取消注释验证越界行为 */
     /* BSP_SSD1315_DrawPoint(255, 255); */
 
     BSP_SSD1315_Refresh();

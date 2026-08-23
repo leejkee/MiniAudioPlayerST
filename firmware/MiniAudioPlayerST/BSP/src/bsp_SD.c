@@ -22,67 +22,67 @@
 /* ========================================================================= */
 
 /* 数据令牌 */
-#define TOKEN_START_BLOCK    0xFE  /* 单块读写起始令牌 */
-#define TOKEN_START_MULTI    0xFC  /* 多块写起始令牌   */
-#define TOKEN_STOP_TRANS     0xFD  /* 停止传输令牌     */
+#define TOKEN_START_BLOCK 0xFE /* 单块读写起始令牌 */
+#define TOKEN_START_MULTI 0xFC /* 多块写起始令牌   */
+#define TOKEN_STOP_TRANS  0xFD /* 停止传输令牌     */
 
 /* SD 命令 */
-#define CMD0     0    /* GO_IDLE_STATE: 复位到空闲态            */
-#define CMD1     1    /* SEND_OP_COND: MMC 初始化               */
-#define CMD8     8    /* SEND_IF_COND: 接口条件检测             */
-#define CMD9     9    /* SEND_CSD: 读取 CSD 寄存器              */
-#define CMD10   10    /* SEND_CID: 读取 CID 寄存器              */
-#define CMD12   12    /* STOP_TRANSMISSION: 停止多块传输         */
-#define CMD16   16    /* SET_BLOCKLEN: 设置块大小               */
-#define CMD17   17    /* READ_SINGLE_BLOCK: 读单块              */
-#define CMD18   18    /* READ_MULTIPLE_BLOCK: 读多块            */
-#define CMD23   23    /* SET_BLOCK_COUNT: 预置写前擦除块数       */
-#define CMD24   24    /* WRITE_BLOCK: 写单块                    */
-#define CMD25   25    /* WRITE_MULTIPLE_BLOCK: 写多块           */
-#define CMD41   41    /* SD_SEND_OP_COND: ACMD41 (需 CMD55 前缀) */
-#define CMD55   55    /* APP_CMD: 下一条为 ACMD                 */
-#define CMD58   58    /* READ_OCR: 读取操作条件寄存器            */
-#define CMD59   59    /* CRC_ON_OFF: 开关 CRC 校验              */
+#define CMD0  0  /* GO_IDLE_STATE: 复位到空闲态            */
+#define CMD1  1  /* SEND_OP_COND: MMC 初始化               */
+#define CMD8  8  /* SEND_IF_COND: 接口条件检测             */
+#define CMD9  9  /* SEND_CSD: 读取 CSD 寄存器              */
+#define CMD10 10 /* SEND_CID: 读取 CID 寄存器              */
+#define CMD12 12 /* STOP_TRANSMISSION: 停止多块传输         */
+#define CMD16 16 /* SET_BLOCKLEN: 设置块大小               */
+#define CMD17 17 /* READ_SINGLE_BLOCK: 读单块              */
+#define CMD18 18 /* READ_MULTIPLE_BLOCK: 读多块            */
+#define CMD23 23 /* SET_BLOCK_COUNT: 预置写前擦除块数       */
+#define CMD24 24 /* WRITE_BLOCK: 写单块                    */
+#define CMD25 25 /* WRITE_MULTIPLE_BLOCK: 写多块           */
+#define CMD41 41 /* SD_SEND_OP_COND: ACMD41 (需 CMD55 前缀) */
+#define CMD55 55 /* APP_CMD: 下一条为 ACMD                 */
+#define CMD58 58 /* READ_OCR: 读取操作条件寄存器            */
+#define CMD59 59 /* CRC_ON_OFF: 开关 CRC 校验              */
 
 /* R1 响应位掩码 */
-#define R1_IDLE              0x01  /* 空闲态        */
-#define R1_ERASE_RESET       0x02  /* 擦除复位      */
-#define R1_ILLEGAL_CMD       0x04  /* 非法命令      */
-#define R1_CRC_ERR           0x08  /* CRC 错误      */
-#define R1_ERASE_SEQ_ERR     0x10  /* 擦除序列错误  */
-#define R1_ADDR_ERR          0x20  /* 地址错误      */
-#define R1_PARAM_ERR         0x40  /* 参数错误      */
-#define R1_READY             0x00  /* 就绪 (非空闲) */
+#define R1_IDLE          0x01 /* 空闲态        */
+#define R1_ERASE_RESET   0x02 /* 擦除复位      */
+#define R1_ILLEGAL_CMD   0x04 /* 非法命令      */
+#define R1_CRC_ERR       0x08 /* CRC 错误      */
+#define R1_ERASE_SEQ_ERR 0x10 /* 擦除序列错误  */
+#define R1_ADDR_ERR      0x20 /* 地址错误      */
+#define R1_PARAM_ERR     0x40 /* 参数错误      */
+#define R1_READY         0x00 /* 就绪 (非空闲) */
 
 /* 数据响应标记 */
-#define DATA_RESP_ACCEPTED   0x05  /* 数据被接受     */
-#define DATA_RESP_CRC_ERR    0x0B  /* CRC 错误       */
-#define DATA_RESP_WRITE_ERR  0x0D  /* 写入错误       */
+#define DATA_RESP_ACCEPTED  0x05 /* 数据被接受     */
+#define DATA_RESP_CRC_ERR   0x0B /* CRC 错误       */
+#define DATA_RESP_WRITE_ERR 0x0D /* 写入错误       */
 
 /* DMA数据快大小和DMA传输超时 */
-#define SD_BLOCK_SIZE 512U  /* 512B 每个DMA数据块 */
+#define SD_BLOCK_SIZE  512U /* 512B 每个DMA数据块 */
 #define SD_DMA_TIMEOUT 200U /* 等待一个BLOCK传输完成*/
 
 /* ACMD41 参数 */
-#define ACMD41_HCS           0x40000000U  /* HCS 位 (Host Capacity Support) */
+#define ACMD41_HCS 0x40000000U /* HCS 位 (Host Capacity Support) */
 
 /* OCR 位 (CMD58 返回) */
-#define OCR_CCS_BIT          0x40  /* CCS 位于 OCR[31:24] 的 bit30 → 第 1 字节 bit6 */
+#define OCR_CCS_BIT 0x40 /* CCS 位于 OCR[31:24] 的 bit30 → 第 1 字节 bit6 */
 
 /* 超时 (ms) */
-#define SD_INIT_TIMEOUT      1000   /* ACMD41 循环超时 */
-#define SD_CMD_TIMEOUT       200    /* 命令响应超时    */
-#define SD_DATA_TIMEOUT      200    /* 数据令牌超时    */
-#define SD_WRITE_TIMEOUT     500    /* 写操作忙等待    */
-#define SD_INIT_RETRY_COUNT  3U     /* 完整初始化序列重试次数 */
-#define SD_INIT_RETRY_DELAY  100U   /* 每次初始化间隔 (ms) */
+#define SD_INIT_TIMEOUT     1000 /* ACMD41 循环超时 */
+#define SD_CMD_TIMEOUT      200  /* 命令响应超时    */
+#define SD_DATA_TIMEOUT     200  /* 数据令牌超时    */
+#define SD_WRITE_TIMEOUT    500  /* 写操作忙等待    */
+#define SD_INIT_RETRY_COUNT 3U   /* 完整初始化序列重试次数 */
+#define SD_INIT_RETRY_DELAY 100U /* 每次初始化间隔 (ms) */
 
 /* 哑字节 (SPI 总线填充) 发送该字节让MCU继续产生SCK时序 */
-#define SD_DUMMY             0xFF
+#define SD_DUMMY 0xFF
 
 /* SPI 配置 */
-#define SD_SPI_TIMEOUT       HAL_MAX_DELAY
-#define SD_SPI_PRESCALER_LOW SPI_BAUDRATEPRESCALER_128
+#define SD_SPI_TIMEOUT        HAL_MAX_DELAY
+#define SD_SPI_PRESCALER_LOW  SPI_BAUDRATEPRESCALER_128
 #define SD_SPI_PRESCALER_HIGH SPI_BAUDRATEPRESCALER_2
 
 /* ========================================================================= */
@@ -106,33 +106,29 @@ typedef enum
  * DMA TX 使用固定地址反复发送该字节。
  * 不能使用函数局部变量，因为 DMA 启动后函数会先返回。
  */
-static uint8_t sd_dma_dummy = SD_DUMMY;
+static uint8_t                 sd_dma_dummy = SD_DUMMY;
 
 // 需要在DMA中断中修改值，所以需要保持 volatile，要求每次都去读取该值
 static volatile sd_dma_state_t sd_dma_state = SD_DMA_STATE_IDLE;
 
-static struct {
-    bsp_sd_state_t      state;         /* 驱动状态              */
-    bsp_sd_card_type_t  card_type;     /* 卡类型                */
-    uint32_t            sector_count;  /* 总扇区数              */
-    uint16_t            sector_size;   /* 扇区大小 (固定 512)   */
+static struct
+{
+    bsp_sd_state_t     state;        /* 驱动状态              */
+    bsp_sd_card_type_t card_type;    /* 卡类型                */
+    uint32_t           sector_count; /* 总扇区数              */
+    uint16_t           sector_size;  /* 扇区大小 (固定 512)   */
 } sd;
 
 /*
  * SD 硬件上下文。
  * SPI 总线操作由 bsp_spi 完成，CS 引脚和事务时序由 SD 驱动管理。
  */
-static const struct {
+static const struct
+{
     bsp_spi_context_t spi;
     GPIO_TypeDef     *cs_port;
     uint16_t          cs_pin;
-} sd_hw = {
-    .spi = {
-        .hspi = &hspi1
-    },
-    .cs_port = GPIOA,
-    .cs_pin  = GPIO_PIN_4
-};
+} sd_hw = {.spi = {.hspi = &hspi1}, .cs_port = GPIOA, .cs_pin = GPIO_PIN_4};
 
 static inline void CS_Select(void)
 {
@@ -143,10 +139,7 @@ static inline uint8_t SD_SPI_RW(uint8_t tx_data)
 {
     uint8_t rx_data = SD_DUMMY;
 
-    (void)BSP_SPI_RW(&sd_hw.spi,
-                     tx_data,
-                     &rx_data,
-                     SD_SPI_TIMEOUT);
+    (void)BSP_SPI_RW(&sd_hw.spi, tx_data, &rx_data, SD_SPI_TIMEOUT);
     return rx_data;
 }
 
@@ -157,11 +150,7 @@ static inline void SD_SPI_Tx(const uint8_t *buf, uint16_t len)
 
 static inline void SD_SPI_Rx(uint8_t *buf, uint16_t len)
 {
-    (void)BSP_SPI_Rx(&sd_hw.spi,
-                     buf,
-                     len,
-                     SD_DUMMY,
-                     SD_SPI_TIMEOUT);
+    (void)BSP_SPI_Rx(&sd_hw.spi, buf, len, SD_DUMMY, SD_SPI_TIMEOUT);
 }
 
 /*
@@ -181,8 +170,10 @@ static inline void CS_Release(void)
 static uint8_t SD_WaitReady(uint32_t timeout_ms)
 {
     uint32_t start = HAL_GetTick();
-    do {
-        if (SD_SPI_RW(SD_DUMMY) == 0xFF) {
+    do
+    {
+        if (SD_SPI_RW(SD_DUMMY) == 0xFF)
+        {
             return 0;
         }
     } while ((HAL_GetTick() - start) < timeout_ms);
@@ -192,9 +183,7 @@ static uint8_t SD_WaitReady(uint32_t timeout_ms)
 /* 速率切换 */
 static void SD_SetSpeed(uint8_t low_speed)
 {
-    (void)BSP_SPI_SetPrescaler(
-        &sd_hw.spi,
-        low_speed ? SD_SPI_PRESCALER_LOW : SD_SPI_PRESCALER_HIGH);
+    (void)BSP_SPI_SetPrescaler(&sd_hw.spi, low_speed ? SD_SPI_PRESCALER_LOW : SD_SPI_PRESCALER_HIGH);
 }
 
 /* ========================================================================= */
@@ -230,20 +219,23 @@ static uint8_t SD_SendCmd(uint8_t cmd, uint32_t arg, uint8_t crc)
     SD_SPI_RW(crc);
 
     /* CMD12: 额外哑字节 */
-    if (cmd == CMD12) {
+    if (cmd == CMD12)
+    {
         SD_SPI_RW(SD_DUMMY);
     }
 
     /* 等待 R1 (MSB=0 表示有效) */
     start = HAL_GetTick();
-    do {
+    do
+    {
         r1 = SD_SPI_RW(SD_DUMMY);
-        if (!(r1 & 0x80)) {
+        if (!(r1 & 0x80))
+        {
             return r1;
         }
     } while ((HAL_GetTick() - start) < SD_CMD_TIMEOUT);
 
-    return r1;  /* 超时返回 0xFF */
+    return r1; /* 超时返回 0xFF */
 }
 
 /* ========================================================================= */
@@ -268,8 +260,10 @@ static uint8_t SD_ReceiveData(uint8_t *data, uint16_t len)
 
     /* 等待起始令牌 0xFE */
     start = HAL_GetTick();
-    while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT) {
-        if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK) {
+    while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT)
+    {
+        if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK)
+        {
             goto token_found;
         }
     }
@@ -300,107 +294,113 @@ token_found:
     * → 阻塞读取 2B CRC
     * → CS High + dummy
     */
-  static bsp_sd_status_t SD_ReceiveBlockDMA(uint8_t *data)
-  {
-      uint32_t start;
-      HAL_StatusTypeDef hal_status;
-      uint8_t token_found = 0U;
+static bsp_sd_status_t SD_ReceiveBlockDMA(uint8_t *data)
+{
+    uint32_t          start;
+    HAL_StatusTypeDef hal_status;
+    uint8_t           token_found = 0U;
 
-      if (data == NULL) {
-          return BSP_SD_ERR_PARAM;
-      }
+    if (data == NULL)
+    {
+        return BSP_SD_ERR_PARAM;
+    }
 
-      if (sd_dma_state == SD_DMA_STATE_BUSY) {
-          return BSP_SD_ERR_RW;
-      }
+    if (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
+        return BSP_SD_ERR_RW;
+    }
 
-      CS_Select();
+    CS_Select();
 
-      /*
+    /*
        * Token 属于协议控制信息，继续使用阻塞 SPI。
        */
-      start = HAL_GetTick();
+    start = HAL_GetTick();
 
-      while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT) {
-          if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK) {
+    while ((HAL_GetTick() - start) < SD_DATA_TIMEOUT)
+    {
+        if (SD_SPI_RW(SD_DUMMY) == TOKEN_START_BLOCK)
+        {
             token_found = 1U;
-              break;
-          }
-      }
+            break;
+        }
+    }
 
-      if (token_found == 0U) {
-          CS_Release();
-          return BSP_SD_ERR_TIMEOUT;
-      }
+    if (token_found == 0U)
+    {
+        CS_Release();
+        return BSP_SD_ERR_TIMEOUT;
+    }
 
-      /*
+    /*
        * 必须在启动 DMA 前设置 BUSY。
        * 极端情况下 DMA 可能很快完成，回调需要观察到 BUSY。
        */
-      sd_dma_state = SD_DMA_STATE_BUSY;
+    sd_dma_state = SD_DMA_STATE_BUSY;
 
-      hal_status = BSP_SPI_TxRx_DMA(&sd_hw.spi,
-                                    &sd_dma_dummy,
-                                    data,
-                                    SD_BLOCK_SIZE);
+    hal_status = BSP_SPI_TxRx_DMA(&sd_hw.spi, &sd_dma_dummy, data, SD_BLOCK_SIZE);
 
-      if (hal_status != HAL_OK) {
-          sd_dma_state = SD_DMA_STATE_IDLE;
-          CS_Release();
-          return BSP_SD_ERR_RW;
-      }
+    if (hal_status != HAL_OK)
+    {
+        sd_dma_state = SD_DMA_STATE_IDLE;
+        CS_Release();
+        return BSP_SD_ERR_RW;
+    }
 
-      /*
+    /*
        * FatFS 的 disk_read()/f_read() 是同步接口，
        * 因此 BSP 内部等待 DMA 完成。
        *
        * 等待期间 CPU 不负责逐字节搬运，DMA IRQ 可以正常响应。
        */
-      start = HAL_GetTick();
+    start = HAL_GetTick();
 
-      while (sd_dma_state == SD_DMA_STATE_BUSY) {
-          if ((HAL_GetTick() - start) >= SD_DMA_TIMEOUT) {
-              /*
+    while (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
+        if ((HAL_GetTick() - start) >= SD_DMA_TIMEOUT)
+        {
+            /*
                * 先修改状态，让可能迟到的完成回调失效，
                * 再停止 DMA。
                */
-              sd_dma_state = SD_DMA_STATE_ERROR;
-              (void)BSP_SPI_DMAStop(&sd_hw.spi);
+            sd_dma_state = SD_DMA_STATE_ERROR;
+            (void)BSP_SPI_DMAStop(&sd_hw.spi);
 
-              /*
+            /*
                * DMA 已停止、SPI 恢复空闲后，才能使用阻塞 SPI
                * 发送释放总线所需的 dummy 字节。
                */
-              CS_Release();
-              sd_dma_state = SD_DMA_STATE_IDLE;
-              return BSP_SD_ERR_TIMEOUT;
-          }
-      }
+            CS_Release();
+            sd_dma_state = SD_DMA_STATE_IDLE;
+            return BSP_SD_ERR_TIMEOUT;
+        }
+    }
 
-      if (sd_dma_state != SD_DMA_STATE_DONE) {
-          /*
+    if (sd_dma_state != SD_DMA_STATE_DONE)
+    {
+        /*
            * DMA 错误回调已将状态设置为 ERROR。
            * 调用 Stop 确保 TX/RX 两个通道都被关闭。
            */
-          (void)BSP_SPI_DMAStop(&sd_hw.spi);
-          CS_Release();
-          sd_dma_state = SD_DMA_STATE_IDLE;
-          return BSP_SD_ERR_RW;
-      }
+        (void)BSP_SPI_DMAStop(&sd_hw.spi);
+        CS_Release();
+        sd_dma_state = SD_DMA_STATE_IDLE;
+        return BSP_SD_ERR_RW;
+    }
 
-      /*
+    /*
        * 回调发生时 HAL 已完成 SPI DMA 收尾，
        * 此后可以重新使用阻塞接口。
        */
-      sd_dma_state = SD_DMA_STATE_IDLE;
+    sd_dma_state = SD_DMA_STATE_IDLE;
 
-      /* CRC 暂不校验，仅从总线上取走。 */
-      (void)SD_SPI_RW(SD_DUMMY);
-      (void)SD_SPI_RW(SD_DUMMY);
+    /* CRC 暂不校验，仅从总线上取走。 */
+    (void)SD_SPI_RW(SD_DUMMY);
+    (void)SD_SPI_RW(SD_DUMMY);
 
-      CS_Release();
-      return BSP_SD_OK;
-  }
+    CS_Release();
+    return BSP_SD_OK;
+}
 
 /* ========================================================================= */
 /*                      数据发送                                              */
@@ -424,7 +424,8 @@ static uint8_t SD_SendBlock(const uint8_t *buf, uint8_t token)
     SD_SPI_RW(token);
 
     /* 停止令牌: 不发数据 */
-    if (token == TOKEN_STOP_TRANS) {
+    if (token == TOKEN_STOP_TRANS)
+    {
         SD_WaitReady(SD_WRITE_TIMEOUT);
         return 0;
     }
@@ -438,7 +439,8 @@ static uint8_t SD_SendBlock(const uint8_t *buf, uint8_t token)
 
     /* 读取数据响应 */
     resp = SD_SPI_RW(SD_DUMMY);
-    if ((resp & 0x1F) != DATA_RESP_ACCEPTED) {
+    if ((resp & 0x1F) != DATA_RESP_ACCEPTED)
+    {
         return 1;
     }
 
@@ -453,7 +455,8 @@ static uint8_t SD_SendBlock(const uint8_t *buf, uint8_t token)
 
 static uint8_t SD_ReadCSD(uint8_t *csd)
 {
-    if (SD_SendCmd(CMD9, 0, 0x01) != R1_READY) {
+    if (SD_SendCmd(CMD9, 0, 0x01) != R1_READY)
+    {
         CS_Release();
         return 1;
     }
@@ -463,7 +466,8 @@ static uint8_t SD_ReadCSD(uint8_t *csd)
 
 static uint8_t SD_ReadCID(uint8_t *cid)
 {
-    if (SD_SendCmd(CMD10, 0, 0x01) != R1_READY) {
+    if (SD_SendCmd(CMD10, 0, 0x01) != R1_READY)
+    {
         CS_Release();
         return 1;
     }
@@ -491,28 +495,29 @@ static uint8_t SD_ParseCSD(void)
     uint8_t  csd[16];
     uint32_t c_size;
 
-    if (SD_ReadCSD(csd) != 0) {
+    if (SD_ReadCSD(csd) != 0)
+    {
         return 1;
     }
 
-    if ((csd[0] & 0xC0) == 0x40) {
+    if ((csd[0] & 0xC0) == 0x40)
+    {
         /* ---- CSD V2.0 (SDHC/SDXC) ---- */
-        c_size  = ((uint32_t)(csd[7] & 0x3F) << 16);
+        c_size = ((uint32_t)(csd[7] & 0x3F) << 16);
         c_size |= ((uint32_t)csd[8] << 8);
-        c_size |=  (uint32_t)csd[9];
+        c_size |= (uint32_t)csd[9];
         sd.sector_count = (c_size + 1) * 1024U;
-    } else {
+    }
+    else
+    {
         /* ---- CSD V1.0 (SDSC) ---- */
-        uint8_t  read_bl_len  = csd[5] & 0x0F;
-        uint16_t c_size_v1    = ((uint16_t)(csd[6] & 0x03) << 10)
-                              | ((uint16_t)csd[7] << 2)
-                              | ((uint16_t)(csd[8] & 0xC0) >> 6);
-        uint8_t  c_size_mult  = ((csd[9] & 0x03) << 1)
-                              | ((csd[10] & 0x80) >> 7);
+        uint8_t  read_bl_len = csd[5] & 0x0F;
+        uint16_t c_size_v1   = ((uint16_t)(csd[6] & 0x03) << 10) | ((uint16_t)csd[7] << 2) |
+                               ((uint16_t)(csd[8] & 0xC0) >> 6);
+        uint8_t  c_size_mult = ((csd[9] & 0x03) << 1) | ((csd[10] & 0x80) >> 7);
 
-        sd.sector_count = ((uint32_t)c_size_v1 + 1)
-                        * (1UL << (c_size_mult + 2))
-                        * (1UL << (read_bl_len - 9));
+        sd.sector_count = ((uint32_t)c_size_v1 + 1) * (1UL << (c_size_mult + 2)) *
+                          (1UL << (read_bl_len - 9));
     }
 
     return 0;
@@ -528,7 +533,8 @@ static uint8_t SD_ParseCSD(void)
  */
 static uint32_t SD_SectorToAddr(uint32_t sector)
 {
-    if (sd.card_type == BSP_SD_CARD_SDHC || sd.card_type == BSP_SD_CARD_SDXC) {
+    if (sd.card_type == BSP_SD_CARD_SDHC || sd.card_type == BSP_SD_CARD_SDXC)
+    {
         return sector;
     }
     return sector << 9;
@@ -558,68 +564,85 @@ static bsp_sd_status_t SD_InitAttempt(void)
 
     /* ---- 80+ 时钟脉冲, 引导 SD 卡进入 SPI 模式 ---- */
     CS_Release();
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++)
+    {
         SD_SPI_RW(SD_DUMMY);
     }
 
     /* ---- CMD0: 复位 (在超时内重试进入 IDLE 态) ---- */
     start = HAL_GetTick();
-    do {
+    do
+    {
         r1 = SD_SendCmd(CMD0, 0, 0x95);
         CS_Release();
-        if (r1 == R1_IDLE) {
+        if (r1 == R1_IDLE)
+        {
             break;
         }
         HAL_Delay(10U);
     } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
-    if (r1 != R1_IDLE) {
+    if (r1 != R1_IDLE)
+    {
         sd.state = BSP_SD_STATE_ERROR;
         return BSP_SD_ERR_INIT;
     }
 
     /* ---- CMD8: 接口条件检测 (区分 V2/V1) ---- */
     r1 = SD_SendCmd(CMD8, 0x1AA, 0x87);
-    if (r1 == R1_IDLE) {
-        for (int i = 0; i < 4; i++) {
+    if (r1 == R1_IDLE)
+    {
+        for (int i = 0; i < 4; i++)
+        {
             buf[i] = SD_SPI_RW(SD_DUMMY);
         }
         CS_Release();
-        if (buf[2] == 0x01 && buf[3] == 0xAA) {
+        if (buf[2] == 0x01 && buf[3] == 0xAA)
+        {
             is_v2 = 1;
         }
-    } else {
+    }
+    else
+    {
         CS_Release();
     }
 
     /* ---- ACMD41 初始化 ---- */
-    if (is_v2) {
+    if (is_v2)
+    {
         /* V2: 带 HCS 位 */
         start = HAL_GetTick();
-        do {
+        do
+        {
             SD_SendCmd(CMD55, 0, 0x01);
             CS_Release();
             r1 = SD_SendCmd(CMD41, ACMD41_HCS, 0x01);
             CS_Release();
-            if (r1 == R1_READY) break;
+            if (r1 == R1_READY)
+            {
+                break;
+            }
             HAL_Delay(10);
         } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
-        if (r1 != R1_READY) {
+        if (r1 != R1_READY)
+        {
             sd.state = BSP_SD_STATE_ERROR;
             return BSP_SD_ERR_INIT;
         }
 
         /* CMD58 读取 OCR, 检测 CCS 位 */
         SD_SendCmd(CMD58, 0, 0x01);
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             buf[i] = SD_SPI_RW(SD_DUMMY);
         }
         CS_Release();
 
-        sd.card_type = (buf[0] & OCR_CCS_BIT) ? BSP_SD_CARD_SDHC
-                                               : BSP_SD_CARD_SDSC;
-    } else {
+        sd.card_type = (buf[0] & OCR_CCS_BIT) ? BSP_SD_CARD_SDHC : BSP_SD_CARD_SDSC;
+    }
+    else
+    {
         /*
          * 非 V2: 用一次 ACMD41 探测区分 V1 和 MMC。
          * V1 卡响应 R1 <= 1 (IDLE 或 READY); MMC 卡不支持 ACMD41, 返回 >1。
@@ -629,33 +652,46 @@ static bsp_sd_status_t SD_InitAttempt(void)
         r1 = SD_SendCmd(CMD41, 0, 0x01);
         CS_Release();
 
-        if (r1 <= 1) {
+        if (r1 <= 1)
+        {
             /* V1 卡 */
             start = HAL_GetTick();
-            do {
+            do
+            {
                 SD_SendCmd(CMD55, 0, 0x01);
                 CS_Release();
                 r1 = SD_SendCmd(CMD41, 0, 0x01);
                 CS_Release();
-                if (r1 == R1_READY) break;
+                if (r1 == R1_READY)
+                {
+                    break;
+                }
                 HAL_Delay(10);
             } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
-            if (r1 != R1_READY) {
+            if (r1 != R1_READY)
+            {
                 sd.state = BSP_SD_STATE_ERROR;
                 return BSP_SD_ERR_INIT;
             }
-        } else {
+        }
+        else
+        {
             /* MMC 卡 */
             start = HAL_GetTick();
-            do {
+            do
+            {
                 r1 = SD_SendCmd(CMD1, 0, 0x01);
                 CS_Release();
-                if (r1 == R1_READY) break;
+                if (r1 == R1_READY)
+                {
+                    break;
+                }
                 HAL_Delay(10);
             } while ((HAL_GetTick() - start) < SD_INIT_TIMEOUT);
 
-            if (r1 != R1_READY) {
+            if (r1 != R1_READY)
+            {
                 sd.state = BSP_SD_STATE_ERROR;
                 return BSP_SD_ERR_INIT;
             }
@@ -666,7 +702,8 @@ static bsp_sd_status_t SD_InitAttempt(void)
     /* ---- CMD16: 设置块大小 = 512 ---- */
     r1 = SD_SendCmd(CMD16, 512, 0x01);
     CS_Release();
-    if (r1 != R1_READY) {
+    if (r1 != R1_READY)
+    {
         sd.state = BSP_SD_STATE_ERROR;
         return BSP_SD_ERR_INIT;
     }
@@ -676,7 +713,8 @@ static bsp_sd_status_t SD_InitAttempt(void)
     CS_Release();
 
     /* ---- 读取 CSD, 计算扇区数 ---- */
-    if (SD_ParseCSD() != 0) {
+    if (SD_ParseCSD() != 0)
+    {
         sd.state = BSP_SD_STATE_ERROR;
         return BSP_SD_ERR_INIT;
     }
@@ -697,7 +735,7 @@ static bsp_sd_status_t SD_InitAttempt(void)
 bsp_sd_status_t BSP_SD_Init(void)
 {
     bsp_sd_status_t status = BSP_SD_ERR_INIT;
-    uint8_t attempt;
+    uint8_t         attempt;
 
     if (sd_dma_state == SD_DMA_STATE_BUSY)
     {
@@ -706,15 +744,18 @@ bsp_sd_status_t BSP_SD_Init(void)
 
     sd_dma_state = SD_DMA_STATE_IDLE;
 
-    for (attempt = 0U; attempt < SD_INIT_RETRY_COUNT; attempt++) {
+    for (attempt = 0U; attempt < SD_INIT_RETRY_COUNT; attempt++)
+    {
         status = SD_InitAttempt();
-        if (status == BSP_SD_OK) {
+        if (status == BSP_SD_OK)
+        {
             return BSP_SD_OK;
         }
 
         CS_Release();
         SD_SetSpeed(1U);
-        if (attempt + 1U < SD_INIT_RETRY_COUNT) {
+        if (attempt + 1U < SD_INIT_RETRY_COUNT)
+        {
             HAL_Delay(SD_INIT_RETRY_DELAY);
         }
     }
@@ -728,7 +769,8 @@ bsp_sd_status_t BSP_SD_Init(void)
   */
 void BSP_SD_DeInit(void)
 {
-    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+    if (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
         (void)BSP_SPI_DMAStop(&sd_hw.spi);
     }
 
@@ -763,8 +805,9 @@ uint8_t BSP_SD_IsPresent(void)
     r1 = SD_SendCmd(CMD0, 0, 0x95);
     CS_Release();
 
-    if (sd.card_type != BSP_SD_CARD_UNKNOWN) {
-        SD_SetSpeed(0);  /* 恢复高速 */
+    if (sd.card_type != BSP_SD_CARD_UNKNOWN)
+    {
+        SD_SetSpeed(0); /* 恢复高速 */
     }
 
     return (r1 == R1_IDLE) ? 1 : 0;
@@ -775,8 +818,14 @@ uint8_t BSP_SD_IsPresent(void)
   */
 bsp_sd_status_t BSP_SD_GetInfo(bsp_sd_info_t *info)
 {
-    if (info == NULL)                   return BSP_SD_ERR_PARAM;
-    if (sd.state != BSP_SD_STATE_READY) return BSP_SD_ERR_NOT_READY;
+    if (info == NULL)
+    {
+        return BSP_SD_ERR_PARAM;
+    }
+    if (sd.state != BSP_SD_STATE_READY)
+    {
+        return BSP_SD_ERR_NOT_READY;
+    }
 
     info->type         = sd.card_type;
     info->sector_count = sd.sector_count;
@@ -794,32 +843,44 @@ bsp_sd_status_t BSP_SD_GetInfo(bsp_sd_info_t *info)
   */
 bsp_sd_status_t BSP_SD_ReadBlocks(uint32_t sector, uint8_t *buffer, uint32_t count)
 {
-    uint8_t  r1;
-    uint32_t addr;
+    uint8_t         r1;
+    uint32_t        addr;
     bsp_sd_status_t status;
 
-    if (buffer == NULL || count == 0)   return BSP_SD_ERR_PARAM;
-    if (sd.state != BSP_SD_STATE_READY) return BSP_SD_ERR_NOT_READY;
+    if (buffer == NULL || count == 0)
+    {
+        return BSP_SD_ERR_PARAM;
+    }
+    if (sd.state != BSP_SD_STATE_READY)
+    {
+        return BSP_SD_ERR_NOT_READY;
+    }
 
     addr = SD_SectorToAddr(sector);
 
-    if (count == 1) {
+    if (count == 1)
+    {
         /* ---- 单块读 CMD17 ---- */
         r1 = SD_SendCmd(CMD17, addr, 0x01);
-        if (r1 != R1_READY) {
+        if (r1 != R1_READY)
+        {
             CS_Release();
             return BSP_SD_ERR_RW;
         }
         return SD_ReceiveBlockDMA(buffer);
-    } else {
+    }
+    else
+    {
         /* ---- 多块读 CMD18 ---- */
         r1 = SD_SendCmd(CMD18, addr, 0x01);
-        if (r1 != R1_READY) {
+        if (r1 != R1_READY)
+        {
             CS_Release();
             return BSP_SD_ERR_RW;
         }
 
-        for (uint32_t i = 0; i < count; i++) {
+        for (uint32_t i = 0; i < count; i++)
+        {
             /*
              * SD_ReceiveData 内部: CS_Low → 等 0xFE → 读 512B → CS_Release
              * 多块读间 CS 的 toggling 与参考实现一致。
@@ -828,7 +889,7 @@ bsp_sd_status_t BSP_SD_ReadBlocks(uint32_t sector, uint8_t *buffer, uint32_t cou
             status = SD_ReceiveBlockDMA(buffer + (i * SD_BLOCK_SIZE));
             if (status != BSP_SD_OK)
             {
-                (void) SD_SendCmd(CMD12, 0U, 0x01U);
+                (void)SD_SendCmd(CMD12, 0U, 0x01U);
                 CS_Release();
                 return status;
             }
@@ -852,26 +913,37 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
     uint8_t  r1;
     uint32_t addr;
 
-    if (buffer == NULL || count == 0)   return BSP_SD_ERR_PARAM;
-    if (sd.state != BSP_SD_STATE_READY) return BSP_SD_ERR_NOT_READY;
+    if (buffer == NULL || count == 0)
+    {
+        return BSP_SD_ERR_PARAM;
+    }
+    if (sd.state != BSP_SD_STATE_READY)
+    {
+        return BSP_SD_ERR_NOT_READY;
+    }
 
     addr = SD_SectorToAddr(sector);
 
-    if (count == 1) {
+    if (count == 1)
+    {
         /* ---- 单块写 CMD24 ---- */
         r1 = SD_SendCmd(CMD24, addr, 0x01);
-        if (r1 != R1_READY) {
+        if (r1 != R1_READY)
+        {
             CS_Release();
             return BSP_SD_ERR_RW;
         }
         /* SD_SendCmd 保持 CS 低 → SD_SendBlock 写数据 → 最终释放 CS */
-        if (SD_SendBlock(buffer, TOKEN_START_BLOCK) != 0) {
+        if (SD_SendBlock(buffer, TOKEN_START_BLOCK) != 0)
+        {
             CS_Release();
             return BSP_SD_ERR_RW;
         }
         CS_Release();
         return BSP_SD_OK;
-    } else {
+    }
+    else
+    {
         /* ---- 多块写 CMD25 ---- */
         /* ACMD23: 预置擦除块数 */
         SD_SendCmd(CMD55, 0, 0x01);
@@ -881,7 +953,8 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
 
         /* 启动多块写 */
         r1 = SD_SendCmd(CMD25, addr, 0x01);
-        if (r1 != R1_READY) {
+        if (r1 != R1_READY)
+        {
             CS_Release();
             return BSP_SD_ERR_RW;
         }
@@ -890,11 +963,13 @@ bsp_sd_status_t BSP_SD_WriteBlocks(uint32_t sector, const uint8_t *buffer, uint3
          * CS 由 SD_SendCmd 保活。
          * 多块写期间 CS 维持低电平, 逐块写入, 最后发停止令牌。
          */
-        for (uint32_t i = 0; i < count; i++) {
+        for (uint32_t i = 0; i < count; i++)
+        {
             CS_Select();
             SD_WaitReady(SD_CMD_TIMEOUT);
 
-            if (SD_SendBlock(buffer + (i * 512), TOKEN_START_MULTI) != 0) {
+            if (SD_SendBlock(buffer + (i * 512), TOKEN_START_MULTI) != 0)
+            {
                 /* 异常中止: 发停止令牌 */
                 SD_SPI_RW(TOKEN_STOP_TRANS);
                 SD_WaitReady(SD_WRITE_TIMEOUT);
@@ -926,14 +1001,16 @@ bsp_sd_status_t BSP_SD_Sync(void)
 
 void BSP_SD_SPI_TxRxCpltCallback(void)
 {
-    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+    if (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
         sd_dma_state = SD_DMA_STATE_DONE;
     }
 }
 
 void BSP_SD_SPI_ErrorCallback(void)
 {
-    if (sd_dma_state == SD_DMA_STATE_BUSY) {
+    if (sd_dma_state == SD_DMA_STATE_BUSY)
+    {
         sd_dma_state = SD_DMA_STATE_ERROR;
     }
 }

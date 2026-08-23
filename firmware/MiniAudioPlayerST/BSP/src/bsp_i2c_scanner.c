@@ -24,23 +24,29 @@ uint8_t BSP_I2C_Scanner_Scan(I2C_HandleTypeDef *hi2c, uint32_t timeout)
 {
     uint8_t count = 0;
 
-    if (hi2c == NULL) {
+    if (hi2c == NULL)
+    {
         LOG_DEBUG("Scan", "handle is NULL");
         return 0;
     }
 
     LOG_DEBUG("Scan", "Scanning 7-bit address space");
 
-    for (uint8_t addr = 1; addr < 128; addr++) {
-        if (HAL_I2C_IsDeviceReady(hi2c, addr << 1, 2, timeout) == HAL_OK) {
+    for (uint8_t addr = 1; addr < 128; addr++)
+    {
+        if (HAL_I2C_IsDeviceReady(hi2c, addr << 1, 2, timeout) == HAL_OK)
+        {
             LOG_DEBUG("Found", "address=0x%02X", addr);
             count++;
         }
     }
 
-    if (count == 0) {
+    if (count == 0)
+    {
         LOG_DEBUG("Result", "No device found");
-    } else {
+    }
+    else
+    {
         LOG_DEBUG("Result", "%u device(s) found", count);
     }
 

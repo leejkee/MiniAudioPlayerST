@@ -11,22 +11,23 @@
 #define __VS1003_TEST_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-/**
+    /**
   * @brief  初始化 VS1003 并播放一次约 1 kHz、持续 3 秒的测试音
   * @note   串口 PASS 表示 SPI/寄存器/正弦命令执行成功；
   *         最终声音输出是否正常仍需由耳机或有源音箱确认。
   */
-void VS1003_Test_Init(void);
+    void VS1003_Test_Init(void);
 
-/**
+    /**
   * @brief  处理测试按键
   * @note   需在主循环中持续调用。释放 OK 键后会重新播放测试音；
   *         若上次初始化失败，则先重试初始化。
   */
-void VS1003_Test_Run(void);
+    void VS1003_Test_Run(void);
 
 #ifdef __cplusplus
 }

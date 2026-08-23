@@ -2,14 +2,15 @@
 #define __UI_MENU_PAGES_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "ui_render.h"
 
-extern PageHandler_t Page_Menu;
-extern PageHandler_t Page_Volume;
-extern PageHandler_t Page_PlayMode;
+    extern PageHandler_t Page_Menu;
+    extern PageHandler_t Page_Volume;
+    extern PageHandler_t Page_PlayMode;
 
 #ifdef __cplusplus
 }

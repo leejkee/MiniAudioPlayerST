@@ -10,8 +10,8 @@
 /* I2C 底层 — SSD1315 专用                                                  */
 /* ========================================================================== */
 
-#define BSP_SSD1315_I2C_ADDR  (0x3C << 1)
-#define BSP_SSD1315_TIMEOUT   100
+#define BSP_SSD1315_I2C_ADDR (0x3C << 1)
+#define BSP_SSD1315_TIMEOUT  100
 
 static void BSP_SSD1315_WriteCmd(uint8_t command)
 {
@@ -22,9 +22,10 @@ static void BSP_SSD1315_WriteCmd(uint8_t command)
 static void BSP_SSD1315_WriteData(uint8_t *data, uint16_t len)
 {
     /* 控制字节 + 数据必须在同一次 I2C 事务中发送 */
-    static uint8_t buf[129];  /* 1 控制字节 + 最大 128 数据字节 */
-    buf[0] = 0x40;            /* 0x40 = 数据模式 (Co=0, D/C#=1) */
-    for (uint16_t i = 0; i < len && i < 128; i++) {
+    static uint8_t buf[129]; /* 1 控制字节 + 最大 128 数据字节 */
+    buf[0] = 0x40;           /* 0x40 = 数据模式 (Co=0, D/C#=1) */
+    for (uint16_t i = 0; i < len && i < 128; i++)
+    {
         buf[i + 1] = data[i];
     }
     HAL_I2C_Master_Transmit(&hi2c1, BSP_SSD1315_I2C_ADDR, buf, len + 1, HAL_MAX_DELAY);
@@ -100,302 +101,343 @@ static void BSP_SSD1315_WriteData(uint8_t *data, uint16_t len)
 
 static uint8_t BSP_SSD1315_GRAM[8][128];
 
-static uint8_t dirty_pages; // 1 字节，每个 bit 标记一页是否脏
+static uint8_t dirty_pages;  // 1 字节，每个 bit 标记一页是否脏
 
-void BSP_SSD1315_Init(void) {
-  BSP_SSD1315_WriteCmd(0xAE); // 1. 先关显示
+void           BSP_SSD1315_Init(void)
+{
+    BSP_SSD1315_WriteCmd(0xAE);  // 1. 先关显示
 
-  BSP_SSD1315_WriteCmd(0xD5); // 2. 时钟分频 / 振荡频率
-  BSP_SSD1315_WriteCmd(0x80);
+    BSP_SSD1315_WriteCmd(0xD5);  // 2. 时钟分频 / 振荡频率
+    BSP_SSD1315_WriteCmd(0x80);
 
-  BSP_SSD1315_WriteCmd(0xA8); // 3. MUX 比例 = 63 (64 行), 最大分辨率
-  BSP_SSD1315_WriteCmd(0x3F);
+    BSP_SSD1315_WriteCmd(0xA8);  // 3. MUX 比例 = 63 (64 行), 最大分辨率
+    BSP_SSD1315_WriteCmd(0x3F);
 
-  BSP_SSD1315_WriteCmd(0xD3); // 4. 显示偏移 = 0
-  BSP_SSD1315_WriteCmd(0x00);
+    BSP_SSD1315_WriteCmd(0xD3);  // 4. 显示偏移 = 0
+    BSP_SSD1315_WriteCmd(0x00);
 
-  BSP_SSD1315_WriteCmd(0x40); // 5. 显示起始行 = 0
+    BSP_SSD1315_WriteCmd(0x40);  // 5. 显示起始行 = 0
 
-  BSP_SSD1315_WriteCmd(0x8D); // 6. 使能内部电荷泵
-  BSP_SSD1315_WriteCmd(0x14); //    7.5V
+    BSP_SSD1315_WriteCmd(0x8D);  // 6. 使能内部电荷泵
+    BSP_SSD1315_WriteCmd(0x14);  //    7.5V
 
-  BSP_SSD1315_WriteCmd(0x20); // 7. 寻址模式 = 水平
-  BSP_SSD1315_WriteCmd(0x00);
+    BSP_SSD1315_WriteCmd(0x20);  // 7. 寻址模式 = 水平
+    BSP_SSD1315_WriteCmd(0x00);
 
-  BSP_SSD1315_WriteCmd(0xA1); // 8. Segment 重映射 (左右镜像)
-  BSP_SSD1315_WriteCmd(0xC8); // 9. COM 扫描方向 (上下翻转)
+    BSP_SSD1315_WriteCmd(0xA1);  // 8. Segment 重映射 (左右镜像)
+    BSP_SSD1315_WriteCmd(0xC8);  // 9. COM 扫描方向 (上下翻转)
 
-  BSP_SSD1315_WriteCmd(0xDA); // 10. COM 引脚配置
-  BSP_SSD1315_WriteCmd(0x12);
+    BSP_SSD1315_WriteCmd(0xDA);  // 10. COM 引脚配置
+    BSP_SSD1315_WriteCmd(0x12);
 
-  BSP_SSD1315_WriteCmd(0x81); // 11. 对比度
-  BSP_SSD1315_WriteCmd(0x7F);
+    BSP_SSD1315_WriteCmd(0x81);  // 11. 对比度
+    BSP_SSD1315_WriteCmd(0x7F);
 
-  BSP_SSD1315_WriteCmd(0xD9); // 12. 预充电周期
-  BSP_SSD1315_WriteCmd(0xF1);
+    BSP_SSD1315_WriteCmd(0xD9);  // 12. 预充电周期
+    BSP_SSD1315_WriteCmd(0xF1);
 
-  BSP_SSD1315_WriteCmd(0xDB); // 13. VCOMH 电压
-  BSP_SSD1315_WriteCmd(0x40);
+    BSP_SSD1315_WriteCmd(0xDB);  // 13. VCOMH 电压
+    BSP_SSD1315_WriteCmd(0x40);
 
-  BSP_SSD1315_WriteCmd(0xA4); // 14. 恢复 GDDRAM 显示
-  BSP_SSD1315_WriteCmd(0xA6); // 15. 正常显示 (非反色)
+    BSP_SSD1315_WriteCmd(0xA4);  // 14. 恢复 GDDRAM 显示
+    BSP_SSD1315_WriteCmd(0xA6);  // 15. 正常显示 (非反色)
 
-  BSP_SSD1315_Clear(); // 16. 清显存 + 刷屏
+    BSP_SSD1315_Clear();  // 16. 清显存 + 刷屏
 
-  BSP_SSD1315_WriteCmd(0xAF); // 17. 开显示
+    BSP_SSD1315_WriteCmd(0xAF);  // 17. 开显示
 }
 
-void BSP_SSD1315_ColorTurn(uint8_t i) {
-  // 设置 OLED 颜色翻转
-  BSP_SSD1315_WriteCmd(0xA6 | (i & 0x01)); // A6: 正常显示, A7: 反相显示
+void BSP_SSD1315_ColorTurn(uint8_t i)
+{
+    // 设置 OLED 颜色翻转
+    BSP_SSD1315_WriteCmd(0xA6 | (i & 0x01));  // A6: 正常显示, A7: 反相显示
 }
 
-void BSP_SSD1315_DisplayTurn(uint8_t orientation) {
-
-  BSP_SSD1315_WriteCmd(0xC0 | ((orientation & 0x01) << 3)); // 设置扫描方向
-  BSP_SSD1315_WriteCmd(0xA0 | (orientation & 0x02));        // 设置列地址映射
+void BSP_SSD1315_DisplayTurn(uint8_t orientation)
+{
+    BSP_SSD1315_WriteCmd(0xC0 | ((orientation & 0x01) << 3));  // 设置扫描方向
+    BSP_SSD1315_WriteCmd(0xA0 | (orientation & 0x02));         // 设置列地址映射
 }
 
-void BSP_SSD1315_ClearPoint(uint8_t x, uint8_t y) {
-  BSP_SSD1315_SetPixel(x, y, 0); // 擦除像素点
+void BSP_SSD1315_ClearPoint(uint8_t x, uint8_t y)
+{
+    BSP_SSD1315_SetPixel(x, y, 0);  // 擦除像素点
 }
 
-void BSP_SSD1315_Clear(void) {
-  BSP_SSD1315_ClearBuffer();
-  BSP_SSD1315_Refresh();  // 刷新显示
+void BSP_SSD1315_Clear(void)
+{
+    BSP_SSD1315_ClearBuffer();
+    BSP_SSD1315_Refresh();  // 刷新显示
 }
 
-void BSP_SSD1315_ClearBuffer(void) {
-  // 只清空显存数组，由调用方绘制完整帧后再刷新
-  for (uint8_t page = 0; page < 8; page++) {
-    for (uint8_t col = 0; col < 128; col++) {
-      BSP_SSD1315_GRAM[page][col] = 0x00;
+void BSP_SSD1315_ClearBuffer(void)
+{
+    // 只清空显存数组，由调用方绘制完整帧后再刷新
+    for (uint8_t page = 0; page < 8; page++)
+    {
+        for (uint8_t col = 0; col < 128; col++)
+        {
+            BSP_SSD1315_GRAM[page][col] = 0x00;
+        }
     }
-  }
-  dirty_pages = 0xFF;
+    dirty_pages = 0xFF;
 }
 
-void BSP_SSD1315_ClearArea(uint8_t x,
-                           uint8_t y,
-                           uint8_t width,
-                           uint8_t height) {
-  uint16_t x_end = (uint16_t)x + width;
-  uint16_t y_end = (uint16_t)y + height;
+void BSP_SSD1315_ClearArea(uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+{
+    uint16_t x_end = (uint16_t)x + width;
+    uint16_t y_end = (uint16_t)y + height;
 
-  if ((width == 0U) || (height == 0U) || (x >= 128U) || (y >= 64U)) {
-    return;
-  }
-  if (x_end > 128U) {
-    x_end = 128U;
-  }
-  if (y_end > 64U) {
-    y_end = 64U;
-  }
-
-  for (uint16_t row = y; row < y_end; row++) {
-    uint8_t page = (uint8_t)(row / 8U);
-    uint8_t mask = (uint8_t)(1U << (row % 8U));
-
-    for (uint16_t col = x; col < x_end; col++) {
-      BSP_SSD1315_GRAM[page][col] &= (uint8_t)~mask;
+    if ((width == 0U) || (height == 0U) || (x >= 128U) || (y >= 64U))
+    {
+        return;
     }
-    dirty_pages |= (uint8_t)(1U << page);
-  }
-}
-
-void BSP_SSD1315_DisplayOn(void) {
-  BSP_SSD1315_WriteCmd(0xAF); // 开显示
-}
-
-void BSP_SSD1315_DisplayOff(void) {
-  BSP_SSD1315_WriteCmd(0xAE); // 关显示
-}
-
-void BSP_SSD1315_DrawPoint(uint8_t x, uint8_t y) {
-  BSP_SSD1315_SetPixel(x, y, 1); // 点亮像素点
-}
-
-void BSP_SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
-  // 使用 Bresenham 算法绘制直线
-  int dx = abs(x2 - x1);
-  int dy = -abs(y2 - y1);
-  int sx = (x1 < x2) ? 1 : -1;
-  int sy = (y1 < y2) ? 1 : -1;
-  int err = dx + dy;
-  while (1) {
-    BSP_SSD1315_SetPixel(x1, y1, 1);
-    if (x1 == x2 && y1 == y2)
-      break;
-    int e2 = 2 * err;
-    if (e2 >= dy) {
-      err += dy;
-      x1 += sx;
+    if (x_end > 128U)
+    {
+        x_end = 128U;
     }
-    if (e2 <= dx) {
-      err += dx;
-      y1 += sy;
+    if (y_end > 64U)
+    {
+        y_end = 64U;
     }
-  }
+
+    for (uint16_t row = y; row < y_end; row++)
+    {
+        uint8_t page = (uint8_t)(row / 8U);
+        uint8_t mask = (uint8_t)(1U << (row % 8U));
+
+        for (uint16_t col = x; col < x_end; col++)
+        {
+            BSP_SSD1315_GRAM[page][col] &= (uint8_t)~mask;
+        }
+        dirty_pages |= (uint8_t)(1U << page);
+    }
+}
+
+void BSP_SSD1315_DisplayOn(void)
+{
+    BSP_SSD1315_WriteCmd(0xAF);  // 开显示
+}
+
+void BSP_SSD1315_DisplayOff(void)
+{
+    BSP_SSD1315_WriteCmd(0xAE);  // 关显示
+}
+
+void BSP_SSD1315_DrawPoint(uint8_t x, uint8_t y)
+{
+    BSP_SSD1315_SetPixel(x, y, 1);  // 点亮像素点
+}
+
+void BSP_SSD1315_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
+{
+    // 使用 Bresenham 算法绘制直线
+    int dx  = abs(x2 - x1);
+    int dy  = -abs(y2 - y1);
+    int sx  = (x1 < x2) ? 1 : -1;
+    int sy  = (y1 < y2) ? 1 : -1;
+    int err = dx + dy;
+    while (1)
+    {
+        BSP_SSD1315_SetPixel(x1, y1, 1);
+        if (x1 == x2 && y1 == y2)
+        {
+            break;
+        }
+        int e2 = 2 * err;
+        if (e2 >= dy)
+        {
+            err += dy;
+            x1 += sx;
+        }
+        if (e2 <= dx)
+        {
+            err += dx;
+            y1 += sy;
+        }
+    }
 }
 
 void BSP_SSD1315_DrawCircle(uint8_t x, uint8_t y, uint8_t r)
 {
-  int a, b, num;
-  a = 0;
-  b = r;
-  while (2 * b * b >= r * r) {
-    BSP_SSD1315_SetPixel(x + a, y - b, 1);
-    BSP_SSD1315_SetPixel(x - a, y - b, 1);
-    BSP_SSD1315_SetPixel(x - a, y + b, 1);
-    BSP_SSD1315_SetPixel(x + a, y + b, 1);
-    BSP_SSD1315_SetPixel(x + b, y + a, 1);
-    BSP_SSD1315_SetPixel(x + b, y - a, 1);
-    BSP_SSD1315_SetPixel(x - b, y - a, 1);
-    BSP_SSD1315_SetPixel(x - b, y + a, 1);
-    a++;
-    num = (a * a + b * b) - r * r; // 计算当前点到圆心的距离与半径的差值
-    if (num > 0) {
-      b--;
-      a--;
+    int a, b, num;
+    a = 0;
+    b = r;
+    while (2 * b * b >= r * r)
+    {
+        BSP_SSD1315_SetPixel(x + a, y - b, 1);
+        BSP_SSD1315_SetPixel(x - a, y - b, 1);
+        BSP_SSD1315_SetPixel(x - a, y + b, 1);
+        BSP_SSD1315_SetPixel(x + a, y + b, 1);
+        BSP_SSD1315_SetPixel(x + b, y + a, 1);
+        BSP_SSD1315_SetPixel(x + b, y - a, 1);
+        BSP_SSD1315_SetPixel(x - b, y - a, 1);
+        BSP_SSD1315_SetPixel(x - b, y + a, 1);
+        a++;
+        num = (a * a + b * b) - r * r;  // 计算当前点到圆心的距离与半径的差值
+        if (num > 0)
+        {
+            b--;
+            a--;
+        }
+    }
+}
+
+void BSP_SSD1315_SetPixel(uint8_t x, uint8_t y, uint8_t color)
+{
+    uint8_t page = y / 8;
+    uint8_t bit  = y % 8;
+    if (color)
+    {
+        BSP_SSD1315_GRAM[page][x] |= (1 << bit);
+    }
+    else
+    {
+        BSP_SSD1315_GRAM[page][x] &= ~(1 << bit);
+    }
+    dirty_pages |= (1 << page);
+}
+
+void BSP_SSD1315_Refresh(void)
+{
+    for (uint8_t p = 0; p < 8; p++)
+    {
+        // 只刷新脏页
+        if (dirty_pages & (1 << p))
+        {
+            BSP_SSD1315_WriteCmd(0x21);
+            BSP_SSD1315_WriteCmd(0x00);
+            BSP_SSD1315_WriteCmd(0x7F);
+            BSP_SSD1315_WriteCmd(0x22);
+            BSP_SSD1315_WriteCmd(p);
+            BSP_SSD1315_WriteCmd(p);
+            BSP_SSD1315_WriteData(BSP_SSD1315_GRAM[p], 128);
+        }
+    }
+    dirty_pages = 0;  // 清零，下一次重新标记
+}
+
+void BSP_SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size)
+{
+    // size 当前未使用, 固定 8x16 字库。预留参数以兼容 API。
+    (void)size;
+
+    if (chr < FONT_EN_FIRST || chr > FONT_EN_LAST)
+    {
+        return;
     }
 
-  }
-}
+    uint8_t        idx  = (uint8_t)chr - FONT_EN_FIRST;
+    uint8_t        page = y / 8;
 
-void BSP_SSD1315_SetPixel(uint8_t x, uint8_t y, uint8_t color) {
-  uint8_t page = y / 8;
-  uint8_t bit = y % 8;
-  if (color) {
-    BSP_SSD1315_GRAM[page][x] |= (1 << bit);
-  } else {
-    BSP_SSD1315_GRAM[page][x] &= ~(1 << bit);
-  }
-  dirty_pages |= (1 << page);
-}
+    // 字模格式与 GRAM 完全一致: 上半页 8 字节 + 下半页 8 字节
+    // 用 = 直接替换整字节 — bitmap[col] 已包含该列全部 8 个像素 (含 0)
+    const uint8_t *bitmap = font_en_8x16[idx];
 
-void BSP_SSD1315_Refresh(void) {
-  for (uint8_t p = 0; p < 8; p++) {
-    // 只刷新脏页
-    if (dirty_pages & (1 << p)) {
-      BSP_SSD1315_WriteCmd(0x21);
-      BSP_SSD1315_WriteCmd(0x00);
-      BSP_SSD1315_WriteCmd(0x7F);
-      BSP_SSD1315_WriteCmd(0x22);
-      BSP_SSD1315_WriteCmd(p);
-      BSP_SSD1315_WriteCmd(p);
-      BSP_SSD1315_WriteData(BSP_SSD1315_GRAM[p], 128);
+    // 上半页 (rows 0~7): bitmap[0..7] → GRAM[page][x..x+7]
+    for (uint8_t col = 0; col < 8; col++)
+    {
+        BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
     }
-  }
-  dirty_pages = 0; // 清零，下一次重新标记
+    dirty_pages |= (1 << page);
+
+    // 下半页 (rows 8~15): bitmap[8..15] → GRAM[page+1][x..x+7]
+    for (uint8_t col = 0; col < 8; col++)
+    {
+        BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[8 + col];
+    }
+    dirty_pages |= (1 << (page + 1));
 }
 
-
-void BSP_SSD1315_ShowChar(uint8_t x, uint8_t y, char chr, uint8_t size) {
-  // size 当前未使用, 固定 8x16 字库。预留参数以兼容 API。
-  (void)size;
-
-  if (chr < FONT_EN_FIRST || chr > FONT_EN_LAST){
-    return;
-  }
-
-  uint8_t idx = (uint8_t)chr - FONT_EN_FIRST;
-  uint8_t page = y / 8;
-
-  // 字模格式与 GRAM 完全一致: 上半页 8 字节 + 下半页 8 字节
-  // 用 = 直接替换整字节 — bitmap[col] 已包含该列全部 8 个像素 (含 0)
-  const uint8_t *bitmap = font_en_8x16[idx];
-
-  // 上半页 (rows 0~7): bitmap[0..7] → GRAM[page][x..x+7]
-  for (uint8_t col = 0; col < 8; col++) {
-    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
-  }
-  dirty_pages |= (1 << page);
-
-  // 下半页 (rows 8~15): bitmap[8..15] → GRAM[page+1][x..x+7]
-  for (uint8_t col = 0; col < 8; col++) {
-    BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[8 + col];
-  }
-  dirty_pages |= (1 << (page + 1));
+void BSP_SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size)
+{
+    while (*str)
+    {
+        BSP_SSD1315_ShowChar(x, y, *str++, size);
+        x += FONT_EN_CHAR_W;  // 每个字符占 8 像素宽
+    }
 }
 
-void BSP_SSD1315_ShowString(uint8_t x, uint8_t y, const char *str, uint8_t size) {
-  while (*str) {
-    BSP_SSD1315_ShowChar(x, y, *str++, size);
-    x += FONT_EN_CHAR_W; // 每个字符占 8 像素宽
-  }
-}
+void BSP_SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size)
+{
+    // 整数转字符串 (不使用 snprintf, 节省 ROM)
+    char    buf[12];
+    uint8_t i = sizeof(buf) - 1;
+    buf[i]    = '\0';
 
-void BSP_SSD1315_ShowNum(uint8_t x, uint8_t y, uint32_t num, uint8_t len, uint8_t size) {
-  // 整数转字符串 (不使用 snprintf, 节省 ROM)
-  char buf[12];
-  uint8_t i = sizeof(buf) - 1;
-  buf[i] = '\0';
+    do
+    {
+        buf[--i] = '0' + (num % 10);
+        num /= 10;
+    } while (num > 0);
 
-  do {
-    buf[--i] = '0' + (num % 10);
-    num /= 10;
-  } while (num > 0);
+    // 不足 len 位补 '0'
+    while ((uint8_t)(sizeof(buf) - 1 - i) < len)
+    {
+        buf[--i] = '0';
+    }
 
-  // 不足 len 位补 '0'
-  while ((uint8_t)(sizeof(buf) - 1 - i) < len) {
-    buf[--i] = '0';
-  }
-
-  BSP_SSD1315_ShowString(x, y, &buf[i], size);
+    BSP_SSD1315_ShowString(x, y, &buf[i], size);
 }
 
 void BSP_SSD1315_ShowChinese(uint8_t x, uint8_t y, uint16_t unicode, CnFontType type)
 {
-  uint8_t page = y / 8;
-  uint8_t idx;
-  const uint8_t *bitmap;
+    uint8_t        page = y / 8;
+    uint8_t        idx;
+    const uint8_t *bitmap;
 
-  /* Dispatch font type once — single lookup + single bitmap selection */
-  if (type == FONT_TYPE_SYSTEM) {
-    idx = font_cn_lookup(unicode);
-    if (idx == 0xFF) { return; }
-    bitmap = font_cn_16x16[idx];
-  } else {
-    idx = font_file_cn_lookup(unicode);
-    if (idx == 0xFF) { return; }
-    bitmap = font_file_cn_16x16[idx];
-  }
+    /* Dispatch font type once — single lookup + single bitmap selection */
+    if (type == FONT_TYPE_SYSTEM)
+    {
+        idx = font_cn_lookup(unicode);
+        if (idx == 0xFF)
+        {
+            return;
+        }
+        bitmap = font_cn_16x16[idx];
+    }
+    else
+    {
+        idx = font_file_cn_lookup(unicode);
+        if (idx == 0xFF)
+        {
+            return;
+        }
+        bitmap = font_file_cn_16x16[idx];
+    }
 
-  /* Upper half (page)[x..x+15] */
-  for (uint8_t col = 0; col < 16; col++) {
-    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
-  }
-  dirty_pages |= (1 << page);
+    /* Upper half (page)[x..x+15] */
+    for (uint8_t col = 0; col < 16; col++)
+    {
+        BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
+    }
+    dirty_pages |= (1 << page);
 
-  /* Lower half (page+1)[x..x+15] */
-  for (uint8_t col = 0; col < 16; col++) {
-    BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
-  }
-  dirty_pages |= (1 << (page + 1));
+    /* Lower half (page+1)[x..x+15] */
+    for (uint8_t col = 0; col < 16; col++)
+    {
+        BSP_SSD1315_GRAM[page + 1][x + col] = bitmap[16 + col];
+    }
+    dirty_pages |= (1 << (page + 1));
 }
 
-void BSP_SSD1315_ShowIcon(uint8_t x,
-                          uint8_t y,
-                          uint32_t unicode,
-                          uint8_t large)
+void BSP_SSD1315_ShowIcon(uint8_t x, uint8_t y, uint32_t unicode, uint8_t large)
 {
-  uint16_t index = font_icon_lookup(unicode);
-  uint8_t page = y / 8U;
-  const uint8_t *bitmap;
+    uint16_t       index = font_icon_lookup(unicode);
+    uint8_t        page  = y / 8U;
+    const uint8_t *bitmap;
 
-  if ((index == FONT_ICON_NOT_FOUND)
-      || (x > 128U - FONT_ICON_CELL_WIDTH)
-      || (y > 64U - FONT_ICON_CELL_HEIGHT)) {
-    return;
-  }
+    if ((index == FONT_ICON_NOT_FOUND) || (x > 128U - FONT_ICON_CELL_WIDTH) ||
+        (y > 64U - FONT_ICON_CELL_HEIGHT))
+    {
+        return;
+    }
 
-  bitmap = (large != 0U)
-      ? font_icon_large_16x16[index]
-      : font_icon_small_16x16[index];
-  for (uint8_t col = 0U; col < FONT_ICON_CELL_WIDTH; col++) {
-    BSP_SSD1315_GRAM[page][x + col] = bitmap[col];
-    BSP_SSD1315_GRAM[page + 1U][x + col]
-        = bitmap[FONT_ICON_CELL_WIDTH + col];
-  }
-  dirty_pages |= (uint8_t)((1U << page) | (1U << (page + 1U)));
+    bitmap = (large != 0U) ? font_icon_large_16x16[index] : font_icon_small_16x16[index];
+    for (uint8_t col = 0U; col < FONT_ICON_CELL_WIDTH; col++)
+    {
+        BSP_SSD1315_GRAM[page][x + col]      = bitmap[col];
+        BSP_SSD1315_GRAM[page + 1U][x + col] = bitmap[FONT_ICON_CELL_WIDTH + col];
+    }
+    dirty_pages |= (uint8_t)((1U << page) | (1U << (page + 1U)));
 }

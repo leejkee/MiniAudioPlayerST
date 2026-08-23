@@ -12,27 +12,28 @@
 #include "bsp_key.h"
 #include "tim.h"
 
-
 /* MACRO */
-#define KEY_HISTORY_MASK  0x07U
+#define KEY_HISTORY_MASK 0x07U
 
 /* 按键引脚查找表 ------------------------------------------------------------*/
-typedef struct {
+typedef struct
+{
     GPIO_TypeDef *port;
     uint16_t      pin;
 } bsp_key_pin_t;
 
 static const bsp_key_pin_t key_pins[KEY_COUNT] = {
-    [KEY_MENU] = { GPIOA, GPIO_PIN_9  },
-    [KEY_OK]   = { GPIOA, GPIO_PIN_10 },
-    [KEY_L]    = { GPIOB, GPIO_PIN_0  },
-    [KEY_R]    = { GPIOB, GPIO_PIN_1  },
+    [KEY_MENU] = {GPIOA, GPIO_PIN_9},
+    [KEY_OK]   = {GPIOA, GPIO_PIN_10},
+    [KEY_L]    = {GPIOB, GPIO_PIN_0},
+    [KEY_R]    = {GPIOB, GPIO_PIN_1},
 };
 
 /* 消抖上下文 ----------------------------------------------------------------*/
-static volatile struct {
-    uint8_t stable_state;            /* 消抖后的稳定状态 (bitmap, 1=按下) */
-    uint8_t edge_flags;              /* 边沿事件标记 (sticky, bit=1 表示有待消费事件) */
+static volatile struct
+{
+    uint8_t stable_state; /* 消抖后的稳定状态 (bitmap, 1=按下) */
+    uint8_t edge_flags;   /* 边沿事件标记 (sticky, bit=1 表示有待消费事件) */
     uint8_t key_history[KEY_COUNT];
 } key_ctx;
 
@@ -47,8 +48,9 @@ void BSP_Key_Init(void)
     uint8_t i;
 
     key_ctx.stable_state = 0U;
-    key_ctx.edge_flags = 0U;
-    for (i = 0U; i < KEY_COUNT; i++) {
+    key_ctx.edge_flags   = 0U;
+    for (i = 0U; i < KEY_COUNT; i++)
+    {
         key_ctx.key_history[i] = 0U;
     }
 
@@ -64,7 +66,8 @@ void BSP_Key_Init(void)
   */
 uint8_t BSP_Key_Read(bsp_key_id_t id)
 {
-    if (id >= KEY_COUNT) {
+    if (id >= KEY_COUNT)
+    {
         return 1; /* 无效 ID, 视为释放 */
     }
 
@@ -86,24 +89,30 @@ void BSP_Key_Poll(void)
     uint8_t current_raw = 0;
 
     /* 1. 读取所有按键当前电平 */
-    for (uint8_t i = 0; i < KEY_COUNT; i++) {
+    for (uint8_t i = 0; i < KEY_COUNT; i++)
+    {
         const bsp_key_pin_t *kp = &key_pins[i];
-        if (HAL_GPIO_ReadPin(kp->port, kp->pin) == GPIO_PIN_RESET) {
+        if (HAL_GPIO_ReadPin(kp->port, kp->pin) == GPIO_PIN_RESET)
+        {
             current_raw |= (1 << i); /* bit=1 表示按下 */
         }
     }
 
-    for (uint8_t i = 0; i < KEY_COUNT; i++){
-        uint8_t raw_bit = (current_raw >> i) & 1U;
+    for (uint8_t i = 0; i < KEY_COUNT; i++)
+    {
+        uint8_t raw_bit  = (current_raw >> i) & 1U;
         uint8_t bit_mask = (uint8_t)(1U << i);
 
-        key_ctx.key_history[i] = (uint8_t)(((key_ctx.key_history[i] << 1) | raw_bit) & KEY_HISTORY_MASK);
+        key_ctx.key_history[i] =
+            (uint8_t)(((key_ctx.key_history[i] << 1) | raw_bit) & KEY_HISTORY_MASK);
 
-        if (key_ctx.key_history[i] == KEY_HISTORY_MASK){
+        if (key_ctx.key_history[i] == KEY_HISTORY_MASK)
+        {
             // 稳定的4次1，按下，修改状态为按下 (1)
             key_ctx.stable_state |= bit_mask;
         }
-        else if ((key_ctx.key_history[i] == 0U) && ((key_ctx.stable_state & bit_mask) != 0U)) {
+        else if ((key_ctx.key_history[i] == 0U) && ((key_ctx.stable_state & bit_mask) != 0U))
+        {
             // 稳定的4次0，并且之前是1，释放，修改状态为释放 (0)，并且标记释放事件
             key_ctx.stable_state &= (uint8_t)(~bit_mask);
             key_ctx.edge_flags |= bit_mask;
@@ -118,15 +127,17 @@ void BSP_Key_Poll(void)
   */
 key_edge_type_t BSP_Key_GetEvent(bsp_key_id_t id)
 {
-    if (id >= KEY_COUNT) {
+    if (id >= KEY_COUNT)
+    {
         return KEY_EDGE_NONE;
     }
 
     uint8_t bit_mask = (1 << id);
 
-    if (key_ctx.edge_flags & bit_mask) {
+    if (key_ctx.edge_flags & bit_mask)
+    {
         __HAL_TIM_DISABLE_IT(&htim1, TIM_IT_UPDATE);
-        key_ctx.edge_flags &= ~bit_mask;  /* 消费事件, 清零标记 */
+        key_ctx.edge_flags &= ~bit_mask; /* 消费事件, 清零标记 */
         __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
         return KEY_EDGE_RELEASE;
     }
@@ -141,7 +152,8 @@ key_edge_type_t BSP_Key_GetEvent(bsp_key_id_t id)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM1) {
+    if (htim->Instance == TIM1)
+    {
         BSP_Key_Poll();
     }
 }

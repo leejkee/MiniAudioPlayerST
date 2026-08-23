@@ -13,7 +13,8 @@
   */
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-    if ((hspi != NULL) && (hspi->Instance == SPI2)) {
+    if ((hspi != NULL) && (hspi->Instance == SPI2))
+    {
         BSP_VS1003_SPI_TxCpltCallback();
     }
 }
@@ -23,11 +24,13 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
   */
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-    if (hspi == NULL) {
+    if (hspi == NULL)
+    {
         return;
     }
 
-    if (hspi->Instance == SPI1) {
+    if (hspi->Instance == SPI1)
+    {
         BSP_SD_SPI_TxRxCpltCallback();
     }
 }
@@ -37,14 +40,17 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
   */
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-    if (hspi == NULL) {
+    if (hspi == NULL)
+    {
         return;
     }
 
-    if (hspi->Instance == SPI1) {
+    if (hspi->Instance == SPI1)
+    {
         BSP_SD_SPI_ErrorCallback();
     }
-    if (hspi->Instance == SPI2) {
+    if (hspi->Instance == SPI2)
+    {
         BSP_VS1003_SPI_ErrorCallback();
     }
 }
@@ -54,7 +60,8 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == VS1003_DREQ_Pin) {
+    if (GPIO_Pin == VS1003_DREQ_Pin)
+    {
         BSP_VS1003_DREQCallback();
     }
 }

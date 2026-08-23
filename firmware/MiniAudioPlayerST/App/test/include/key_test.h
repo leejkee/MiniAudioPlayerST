@@ -9,12 +9,13 @@
 #define __KEY_TEST_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void KeyTest_Init(void);
+    void KeyTest_Init(void);
 
-void KeyTest_Run(void);
+    void KeyTest_Run(void);
 
 #ifdef __cplusplus
 }

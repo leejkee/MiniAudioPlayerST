@@ -5,8 +5,7 @@
 #include "bsp_config.h"
 #define LOG_MODULE "SSD1315FontTest"
 
-#define BSP_SSD1315_FONT_TEST_DELAY  1000    /* 1s delay between steps */
-
+#define BSP_SSD1315_FONT_TEST_DELAY 1000 /* 1s delay between steps */
 
 void SSD1315_Font_Test_RunAll(void)
 {
@@ -42,7 +41,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+6B4C (ge) ... ");
         idx = font_cn_lookup(0x6B4C);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  32, 0x6B4C, FONT_TYPE_SYSTEM);
+        BSP_SSD1315_ShowChinese(0, 32, 0x6B4C, FONT_TYPE_SYSTEM);
 
         LOG_DEBUG("DEBUG", "U+66F2 (qu) ... ");
         idx = font_cn_lookup(0x66F2);
@@ -68,7 +67,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+6B63 (zheng) ... ");
         idx = font_cn_lookup(0x6B63);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  48, 0x6B63, FONT_TYPE_SYSTEM);
+        BSP_SSD1315_ShowChinese(0, 48, 0x6B63, FONT_TYPE_SYSTEM);
 
         LOG_DEBUG("DEBUG", "U+5728 (zai) ... ");
         idx = font_cn_lookup(0x5728);
@@ -106,7 +105,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+5341 (shi) ... ");
         idx = font_file_cn_lookup(0x5341);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  0, 0x5341, FONT_TYPE_FILE);
+        BSP_SSD1315_ShowChinese(0, 0, 0x5341, FONT_TYPE_FILE);
 
         LOG_DEBUG("DEBUG", "U+5E74 (nian) ... ");
         idx = font_file_cn_lookup(0x5E74);
@@ -117,7 +116,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+6708 (yue) ... ");
         idx = font_file_cn_lookup(0x6708);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  16, 0x6708, FONT_TYPE_FILE);
+        BSP_SSD1315_ShowChinese(0, 16, 0x6708, FONT_TYPE_FILE);
 
         LOG_DEBUG("DEBUG", "U+5149 (guang) ... ");
         idx = font_file_cn_lookup(0x5149);
@@ -128,7 +127,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+6211 (wo) ... ");
         idx = font_file_cn_lookup(0x6211);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  32, 0x6211, FONT_TYPE_FILE);
+        BSP_SSD1315_ShowChinese(0, 32, 0x6211, FONT_TYPE_FILE);
 
         LOG_DEBUG("DEBUG", "U+7684 (de) ... ");
         idx = font_file_cn_lookup(0x7684);
@@ -144,7 +143,7 @@ void SSD1315_Font_Test_RunAll(void)
         LOG_DEBUG("DEBUG", "U+65F6 (shi) ... ");
         idx = font_file_cn_lookup(0x65F6);
         LOG_DEBUG("Message", "%s (idx=%u)", idx != 0xFF ? "ok" : "NOT FOUND", idx);
-        BSP_SSD1315_ShowChinese(0,  48, 0x65F6, FONT_TYPE_FILE);
+        BSP_SSD1315_ShowChinese(0, 48, 0x65F6, FONT_TYPE_FILE);
 
         LOG_DEBUG("DEBUG", "U+5149 (guang) ... ");
         idx = font_file_cn_lookup(0x5149);
@@ -155,5 +154,4 @@ void SSD1315_Font_Test_RunAll(void)
 
     LOG_DEBUG("PASS", "Song names should be visible.");
     HAL_Delay(BSP_SSD1315_FONT_TEST_DELAY);
-
 }

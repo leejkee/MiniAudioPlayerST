@@ -11,9 +11,9 @@ typedef struct
     uint32_t cursor_line;
     uint32_t top_line;
     uint32_t total_line;
-    uint8_t visible_line;
-    WCHAR   file_list[LIST_COUNT][MAX_FILE_NAME_LEN];
-    WCHAR  *file_list_ptr[LIST_COUNT];
+    uint8_t  visible_line;
+    WCHAR    file_list[LIST_COUNT][MAX_FILE_NAME_LEN];
+    WCHAR   *file_list_ptr[LIST_COUNT];
 } FileListView_t;
 
 static FileListView_t file_view = {
@@ -25,9 +25,12 @@ static FileListView_t file_view = {
 
 static void _ClampTopToCursor(void)
 {
-    if (file_view.cursor_line < file_view.top_line) {
+    if (file_view.cursor_line < file_view.top_line)
+    {
         file_view.top_line = file_view.cursor_line;
-    } else if (file_view.cursor_line >= file_view.top_line + LIST_COUNT) {
+    }
+    else if (file_view.cursor_line >= file_view.top_line + LIST_COUNT)
+    {
         file_view.top_line = file_view.cursor_line - LIST_COUNT + 1;
     }
 }
@@ -35,11 +38,7 @@ static void _ClampTopToCursor(void)
 static void _RefreshWindow(void)
 {
     file_view.visible_line = SD_GetAudioFileListWindow(
-        file_view.file_list_ptr,
-        LIST_COUNT,
-        MAX_FILE_NAME_LEN,
-        file_view.top_line,
-        MUSIC_PATH);
+        file_view.file_list_ptr, LIST_COUNT, MAX_FILE_NAME_LEN, file_view.top_line, MUSIC_PATH);
 }
 
 static void _MoveCursor(int8_t delta)
@@ -52,13 +51,16 @@ static void _MoveCursor(int8_t delta)
     }
 
     old_top = file_view.top_line;
-    if (delta < 0) {
-        file_view.cursor_line = (file_view.cursor_line == 0U)
-            ? file_view.total_line - 1U
-            : file_view.cursor_line - 1U;
-    } else {
+    if (delta < 0)
+    {
+        file_view.cursor_line = (file_view.cursor_line == 0U) ? file_view.total_line - 1U
+                                                              : file_view.cursor_line - 1U;
+    }
+    else
+    {
         file_view.cursor_line++;
-        if (file_view.cursor_line >= file_view.total_line) {
+        if (file_view.cursor_line >= file_view.total_line)
+        {
             file_view.cursor_line = 0U;
         }
     }
@@ -74,12 +76,14 @@ SD_Status_t FileManager_Init(void)
 {
     SD_Status_t status = SD_Mount();
 
-    if (status != SD_OK) {
-        file_view.total_line = 0U;
+    if (status != SD_OK)
+    {
+        file_view.total_line   = 0U;
         file_view.visible_line = 0U;
         return status;
     }
-    for (int i = 0; i < LIST_COUNT; i++) {
+    for (int i = 0; i < LIST_COUNT; i++)
+    {
         file_view.file_list_ptr[i] = file_view.file_list[i];
     }
     file_view.total_line  = SD_CountAudioFiles(MUSIC_PATH);
@@ -104,11 +108,12 @@ uint8_t FileManager_GetVisibleCount()
     return file_view.visible_line;
 }
 
-uint8_t FileManager_GetCursorRow(){
+uint8_t FileManager_GetCursorRow()
+{
     return (uint8_t)(file_view.cursor_line - file_view.top_line);
 }
 
-const WCHAR* FileManager_GetVisibleEntry(uint8_t row)
+const WCHAR *FileManager_GetVisibleEntry(uint8_t row)
 {
     if (row >= LIST_COUNT)
     {
@@ -130,7 +135,8 @@ uint32_t FileManager_GetSelectedIndex(void)
 
 uint8_t FileManager_SelectIndex(uint32_t index)
 {
-    if (index >= file_view.total_line) {
+    if (index >= file_view.total_line)
+    {
         return 0U;
     }
 
@@ -140,16 +146,12 @@ uint8_t FileManager_SelectIndex(uint32_t index)
     return 1U;
 }
 
-uint8_t FileManager_GetPath(uint32_t index,
-                            WCHAR *path,
-                            uint16_t path_capacity)
+uint8_t FileManager_GetPath(uint32_t index, WCHAR *path, uint16_t path_capacity)
 {
-    if (index >= file_view.total_line) {
+    if (index >= file_view.total_line)
+    {
         return 0U;
     }
 
-    return SD_GetAudioFilePathByIndex(MUSIC_PATH,
-                                      index,
-                                      path,
-                                      path_capacity);
+    return SD_GetAudioFilePathByIndex(MUSIC_PATH, index, path, path_capacity);
 }

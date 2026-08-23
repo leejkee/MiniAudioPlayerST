@@ -9,8 +9,8 @@
 #include "app_test.h"
 /* Include End */
 
-
-void Test_Init(void){
+void Test_Init(void)
+{
     // BSP_SD_Init();
     // BSP_Key_Init();
     // SD_OLED_Test_Init();
@@ -18,7 +18,8 @@ void Test_Init(void){
     App_TestInit();
 }
 
-void Test_Run(void){
+void Test_Run(void)
+{
     // SD_Test_Run();
     // SD_OLED_Test_Run();
     // Playlist_Test_Run();

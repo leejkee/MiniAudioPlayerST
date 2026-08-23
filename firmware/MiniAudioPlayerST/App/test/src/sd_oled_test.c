@@ -31,7 +31,8 @@ void SD_OLED_Test_Init(void)
 
     /* 2. 挂载 SD 卡 (FATFS f_mount) */
     SD_Status_t sd_stat = SD_Mount();
-    if (sd_stat != SD_OK) {
+    if (sd_stat != SD_OK)
+    {
         LOG_DEBUG("ERROR", "SD mount failed, code=%d", sd_stat);
         BSP_SSD1315_Clear();
         BSP_SSD1315_ShowString(0, 0, "SD Mount Err!", 1);
@@ -44,8 +45,7 @@ void SD_OLED_Test_Init(void)
     LOG_DEBUG("DIAG", "Listing /music directory...");
     sd_stat = SD_Debug_ListDir("/music");
     LOG_DEBUG("DIAG", "SD_Debug_ListDir status=%d", sd_stat);
-    LOG_DEBUG("DIAG", "SD_CountFiles(/music)=%u",
-                     SD_CountFiles(music_path));
+    LOG_DEBUG("DIAG", "SD_CountFiles(/music)=%u", SD_CountFiles(music_path));
 
     /* 4. 切换到文件列表页面 (Page_File.on_enter → FileManager_Init → _Render) */
     // UI_Render_SwitchPage(&Page_File);
@@ -58,9 +58,11 @@ void SD_OLED_Test_Init(void)
 /* -------------------------------------------------------------------------- */
 void SD_OLED_Test_Run(void)
 {
-    for (bsp_key_id_t id = 0; id < KEY_COUNT; id++) {
-        if (BSP_Key_GetEvent(id) == KEY_EDGE_RELEASE) {
-           Page_File.on_key(id);
+    for (bsp_key_id_t id = 0; id < KEY_COUNT; id++)
+    {
+        if (BSP_Key_GetEvent(id) == KEY_EDGE_RELEASE)
+        {
+            Page_File.on_key(id);
         }
     }
 }

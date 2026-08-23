@@ -2,12 +2,13 @@
 #define __APP_TEST_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void App_TestInit(void);
+    void App_TestInit(void);
 
-void App_TestRun(void);
+    void App_TestRun(void);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,44 @@
+name: clang-format
+
+on:
+  push:
+    paths:
+      - ".clang-format"
+      - ".clang-format-ignore"
+      - ".github/workflows/clang-format.yml"
+      - "cmake/clang-format.cmake"
+      - "firmware/MiniAudioPlayerST/App/**/*.c"
+      - "firmware/MiniAudioPlayerST/App/**/*.h"
+      - "firmware/MiniAudioPlayerST/BSP/**/*.c"
+      - "firmware/MiniAudioPlayerST/BSP/**/*.h"
+  pull_request:
+    paths:
+      - ".clang-format"
+      - ".clang-format-ignore"
+      - ".github/workflows/clang-format.yml"
+      - "cmake/clang-format.cmake"
+      - "firmware/MiniAudioPlayerST/App/**/*.c"
+      - "firmware/MiniAudioPlayerST/App/**/*.h"
+      - "firmware/MiniAudioPlayerST/BSP/**/*.c"
+      - "firmware/MiniAudioPlayerST/BSP/**/*.h"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Run clang-format check
+        run: >-
+          cmake
+          -DCLANG_FORMAT_MODE=CHECK
+          -DCLANG_FORMAT_EXECUTABLE=clang-format-18
+          -P cmake/clang-format.cmake
