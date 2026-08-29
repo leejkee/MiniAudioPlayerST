@@ -1,5 +1,6 @@
 #ifndef __FILE_MANAGER_H
 #define __FILE_MANAGER_H
+// 余下已不足一个申请的缓冲区
 
 #ifdef __cplusplus
 extern "C"

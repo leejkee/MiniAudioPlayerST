@@ -38,8 +38,7 @@ typedef struct
     uint32_t        file_read_position;  // 已经从当前音频 payload 读取并提交的数据量
 
     uint8_t         metadata_buffer[BSP_VS1003_STREAM_BUFFER_SIZE];
-    uint16_t
-        end_flush_remaining;  // 文件传输结束，需要发送多少 byte 到vs1003来作为补发数据，确保播放完毕
+    uint16_t        end_flush_remaining;  // 文件传输结束，需要发送多少 byte 到vs1003来作为补发数据，确保播放完毕
 
     // 单曲播放状态
     uint32_t duration_seconds;  // 当前歌曲总时长
@@ -524,6 +523,7 @@ void Player_Tick(void)
     read_size = capacity;
     if ((player.audio_data_size != 0U) && (stream_remaining < read_size))
     {
+        // 余下已不足一个申请的缓冲区
         read_size = (uint16_t)stream_remaining;
     }
     file_status = f_read(&player.file, buffer, read_size, &bytes_read);

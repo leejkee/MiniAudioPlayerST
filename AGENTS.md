@@ -19,9 +19,3 @@
 
 ## Core Source Files
 - Do not modify any source file under `firmware/MiniAudioPlayerST/Core/` except `firmware/MiniAudioPlayerST/Core/Src/main.c`.
-
-## Build and Run
-- This is an embedded project. Compilation, flashing, and runtime verification are performed by the user.
-- Do not run build, compile, flash, debug, simulation, or firmware execution commands.
-- Limit automated verification to non-executing checks such as source inspection, reference searches, and diff checks.
-- Clearly state when changes have not been verified by an actual build or on-device test.

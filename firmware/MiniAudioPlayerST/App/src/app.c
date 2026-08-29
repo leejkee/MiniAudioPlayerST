@@ -38,13 +38,6 @@ void App_Init(void)
 
 void App_Run(void)
 {
-    static uint8_t loop_reported;
-    if (loop_reported == 0U)
-    {
-        LOG_DEBUG("Run", "Main loop entered");
-        loop_reported = 1U;
-    }
-
     if (app_initialized != 0U)
     {
         Player_Tick();
