@@ -10,7 +10,9 @@
 - 一次播放过程中的数据流；
 - Player 状态机及曲末处理。
 
-当前固件采用裸机主循环：`main()` 持续调用 `App_Run()`，再由 `App_Run()` 调用 `Player_Tick()`。`Player_Tick()` 调用 `Decoder_Tick()` 推进文件流，并处理播放完成或错误事件。Decoder 将 `FIL` 数据填入 VS1003 BSP 提供的两个 512 字节流缓冲区；BSP 负责 DREQ 流控、每次最多 32 字节的分块以及 SPI2 TX DMA。`docs/Dev.md` 和 `docs/PRD.md` 中的 FreeRTOS `audioTask`、信号量以及“两个 32 字节缓冲区”属于早期设计，不是当前代码实现。
+当前固件采用裸机主循环：`main()` 持续调用 `App_Run()`。App 在运行态调用 `Player_Tick()`，并监测 Player 是否进入 `ERROR`；发生错误后立即进入异常页，每 1 秒重试一次 `Player_Init()`，成功后回到主页。`Player_Tick()` 调用 `Decoder_Tick()` 推进文件流，并处理播放完成或错误事件。Decoder 将 `FIL` 数据填入 VS1003 BSP 提供的两个 512 字节流缓冲区；BSP 负责 DREQ 流控、每次最多 32 字节的分块以及 SPI2 TX DMA。
+
+SD 读写发生通信错误时，FatFs 磁盘适配层会停止当前 SD 事务并锁存 `STA_NOINIT`。后续挂载只有在重新执行 `BSP_SD_Init()` 成功后才会清除此状态，使运行中拔卡并重新插卡后能够进入完整的 SD 协议初始化流程。
 
 ## 2. 模块关系
 
@@ -71,12 +73,12 @@ flowchart TB
 | 模块 | 与 Player 的关系 |
 |---|---|
 | `Core/Src/main.c` | 调用 `App_Init()`，随后在无限循环中调用 `App_Run()`，是 Player 周期运行的最上游入口。 |
-| `App/src/app.c` | 生产环境中的生命周期协调者；调用 `Player_Init()` 和 `Player_Tick()`，并把初始化错误交给异常页。 |
+| `App/src/app.c` | 生产环境中的生命周期协调者；在 `RUNNING/RECOVERING` 之间转换，把初始化或运行期错误交给异常页，并周期重试 `Player_Init()`。 |
 | `App/src/ui_main_page.c` | 生产环境中的主要控制方和状态消费者；处理播放/暂停、上一曲、下一曲，并读取曲名、状态、模式、音量和时间。 |
 | `App/src/ui_menu_pages.c` | 读取和设置 Player 音量、播放模式。 |
 | `App/src/ui_render.c` | 每次 `App_Run()` 分发按键释放事件和页面 `on_tick`，从而间接触发主页面、菜单页面中的 Player 调用。 |
 | `App/src/ui_file_page.c` | 不调用 Player，但与 Player 共用 FileManager；进入页面时重新扫描列表，L/R 键会改变 FileManager 的选中索引。 |
-| `App/src/ui_exception_page.c` | 不调用 Player 函数，但依赖 `player_status_t`，将初始化错误映射为界面文字。 |
+| `App/src/ui_exception_page.c` | 不调用 Player 函数，但依赖 `player_status_t`，将初始化或运行期错误映射为界面文字。 |
 | `App/src/file_manager.c` | Player 的直接依赖；维护 `/music` 播放列表、当前选择、路径以及当前 `FIL` 的打开和关闭。 |
 | `App/src/decoder.c` | Player 的直接依赖；借用 FileManager 的 `FIL *`，负责文件流读取、VS1003 控制、曲末排空和事件上报。 |
 | `App/src/sd_card.c` | 经 FileManager 间接依赖；挂载 FatFs、扫描 MP3、按索引查找文件路径。 |
@@ -99,7 +101,7 @@ flowchart TB
 
 | 调用模块 | 调用的 Player 接口 | 用途 |
 |---|---|---|
-| `App/src/app.c` | `Player_Init()`、`Player_Tick()` | 初始化播放列表和解码器；在主循环中持续填充播放数据。 |
+| `App/src/app.c` | `Player_Init()`、`Player_Tick()`、`Player_GetState()`、`Player_GetLastError()` | 初始化 Player、推进播放，并在运行期检测错误后进入自动恢复。 |
 | `App/src/ui_main_page.c` | `Player_TogglePause()`、`Player_Previous()`、`Player_Next()` | 响应 OK、L、R 按键。 |
 | `App/src/ui_main_page.c` | `Player_GetCurrentPath()`、`Player_GetMode()`、`Player_GetState()`、`Player_GetCurrentIndex()`、`Player_GetElapsedSeconds()`、`Player_GetDurationSeconds()`、`Player_GetVolume()` | 刷新主界面的曲名、模式、状态、曲目索引、播放时间和音量。 |
 | `App/src/ui_menu_pages.c` | `Player_GetVolume()`、`Player_SetVolume()` | 显示并按 10% 步进调整音量。 |

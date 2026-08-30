@@ -12,7 +12,7 @@ extern "C"
 extern PageHandler_t Page_Exception;
 
 /**
-  * @brief  Set the initialization failure displayed by the exception page.
+  * @brief  Set the playback or initialization failure displayed by the exception page.
   */
 void                 UI_ExceptionPage_SetError(player_status_t error);
 

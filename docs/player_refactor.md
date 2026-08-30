@@ -5,18 +5,19 @@
 - FileManager 统一管理播放列表、当前文件路径和 `FIL` 生命周期。
 - Decoder 接收 FileManager 持有的 `FIL *`，负责文件读取、流缓冲提交、VS1003 控制和曲末排空。
 - Player 只保留面向用户的状态、播放模式、切歌策略和错误映射。
-- `App_Run()` 继续只调度 `Player_Tick()` 和 `UI_Render_Tick()`。
+- `App_Run()` 调度 `Player_Tick()` 和 `UI_Render_Tick()`，并在 Player 进入错误状态后切换到恢复态。
 
 ## 模块关系
 
 ```text
 App_Run
-  -> Player_Tick
+  -> RUNNING: Player_Tick
        -> Decoder_Tick
             -> f_read(FIL *)
             -> BSP_VS1003 流缓冲
        <- FINISHED / FILE_ERROR / DEVICE_ERROR
        -> Player 按 PlayMode 选择重播或下一曲
+  -> RECOVERING: 每 1 秒 Player_Init，成功后回到主页
 ```
 
 Decoder 从 Player 视角隐藏双缓冲的申请和提交，但中断安全的
