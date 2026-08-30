@@ -17,11 +17,11 @@ typedef enum
     APP_STATE_RECOVERING
 } app_state_t;
 
-static app_state_t      app_state;
-static player_status_t  recovery_error;
-static uint32_t         last_recovery_tick;
+static app_state_t     app_state;
+static player_status_t recovery_error;
+static uint32_t        last_recovery_tick;
 
-static void App_EnterRecovery(player_status_t error)
+static void            App_EnterRecovery(player_status_t error)
 {
     uint8_t refresh_page = ((app_state != APP_STATE_RECOVERING) || (recovery_error != error));
 

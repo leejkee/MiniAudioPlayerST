@@ -50,8 +50,7 @@ static void _Page_Enter(void)
     BSP_SSD1315_ShowString(_CenteredX("Player Error"), 0U, "Player Error", 1U);
     BSP_SSD1315_ShowString(_CenteredX("Reason:"), EXCEPTION_ROW_HEIGHT, "Reason:", 1U);
     BSP_SSD1315_ShowString(_CenteredX(error_text), 2U * EXCEPTION_ROW_HEIGHT, error_text, 1U);
-    BSP_SSD1315_ShowString(_CenteredX("Retrying..."), 3U * EXCEPTION_ROW_HEIGHT, "Retrying...",
-                           1U);
+    BSP_SSD1315_ShowString(_CenteredX("Retrying..."), 3U * EXCEPTION_ROW_HEIGHT, "Retrying...", 1U);
 }
 
 void UI_ExceptionPage_SetError(player_status_t error)

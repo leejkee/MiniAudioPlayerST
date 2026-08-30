@@ -25,7 +25,7 @@ typedef struct
     uint8_t         initialized;
     uint8_t         volume;
     uint32_t        file_size;
-    uint32_t        duration_seconds; // 歌曲时长
+    uint32_t        duration_seconds;  // 歌曲时长
     uint32_t        audio_data_size;
     uint8_t         metadata_buffer[PLAYER_METADATA_BUFFER_SIZE];
 } player_context_t;
