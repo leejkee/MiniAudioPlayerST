@@ -1236,6 +1236,11 @@
               <FilePath>..\App\src\ui_file_page.c</FilePath>
             </File>
             <File>
+              <FileName>ui_exception_page.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\ui_exception_page.c</FilePath>
+            </File>
+            <File>
               <FileName>sd_oled_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\test\src\sd_oled_test.c</FilePath>
@@ -1269,6 +1274,11 @@
               <FileName>app.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\src\app.c</FilePath>
+            </File>
+            <File>
+              <FileName>decoder.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\decoder.c</FilePath>
             </File>
           </Files>
         </Group>

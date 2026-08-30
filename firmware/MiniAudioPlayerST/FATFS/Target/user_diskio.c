@@ -44,6 +44,43 @@
 /* Disk status */
 static volatile DSTATUS Stat = STA_NOINIT;
 
+/* ST's diskio wrapper keeps this flag outside the user driver. */
+extern Disk_drvTypeDef disk;
+
+static void USER_SetNotInitialized(BYTE pdrv)
+{
+    Stat = STA_NOINIT;
+    if (pdrv < _VOLUMES) {
+        disk.is_initialized[pdrv] = 0U;
+    }
+}
+
+static void USER_InvalidateDrive(BYTE pdrv)
+{
+    BSP_SD_DeInit();
+    USER_SetNotInitialized(pdrv);
+}
+
+static DRESULT USER_MapSDStatus(BYTE pdrv, bsp_sd_status_t status)
+{
+    switch (status) {
+        case BSP_SD_OK:
+            return RES_OK;
+
+        case BSP_SD_ERR_PARAM:
+            return RES_PARERR;
+
+        case BSP_SD_ERR_NOT_READY:
+        case BSP_SD_ERR_NO_CARD:
+            USER_InvalidateDrive(pdrv);
+            return RES_NOTRDY;
+
+        default:
+            USER_InvalidateDrive(pdrv);
+            return RES_ERROR;
+    }
+}
+
 /* USER CODE END DECL */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,7 +122,7 @@ DSTATUS USER_initialize (
     if (BSP_SD_Init() == BSP_SD_OK) {
         Stat = 0;
     } else {
-        Stat = STA_NOINIT;
+        USER_InvalidateDrive(pdrv);
     }
     return Stat;
   /* USER CODE END INIT */
@@ -101,10 +138,9 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    if (BSP_SD_GetState() == BSP_SD_STATE_READY) {
-        Stat = 0;
-    } else {
-        Stat = STA_NOINIT;
+    /* Only a successful USER_initialize() may clear STA_NOINIT. */
+    if ((Stat & STA_NOINIT) || BSP_SD_GetState() != BSP_SD_STATE_READY) {
+        USER_SetNotInitialized(pdrv);
     }
     return Stat;
   /* USER CODE END STATUS */
@@ -132,13 +168,7 @@ DRESULT USER_read (
     if (!buff || !count)    return RES_PARERR;
 
     st = BSP_SD_ReadBlocks(sector, buff, count);
-    switch (st) {
-        case BSP_SD_OK:          return RES_OK;
-        case BSP_SD_ERR_PARAM:   return RES_PARERR;
-        case BSP_SD_ERR_NOT_READY:
-        case BSP_SD_ERR_NO_CARD: return RES_NOTRDY;
-        default:                 return RES_ERROR;
-    }
+    return USER_MapSDStatus(pdrv, st);
   /* USER CODE END READ */
 }
 
@@ -165,13 +195,7 @@ DRESULT USER_write (
     if (!buff || !count)    return RES_PARERR;
 
     st = BSP_SD_WriteBlocks(sector, buff, count);
-    switch (st) {
-        case BSP_SD_OK:          return RES_OK;
-        case BSP_SD_ERR_PARAM:   return RES_PARERR;
-        case BSP_SD_ERR_NOT_READY:
-        case BSP_SD_ERR_NO_CARD: return RES_NOTRDY;
-        default:                 return RES_ERROR;
-    }
+    return USER_MapSDStatus(pdrv, st);
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -196,13 +220,17 @@ DRESULT USER_ioctl (
     if (Stat & STA_NOINIT) return RES_NOTRDY;
 
     switch (cmd) {
-        case CTRL_SYNC:
-            return (BSP_SD_Sync() == BSP_SD_OK) ? RES_OK : RES_ERROR;
+        case CTRL_SYNC: {
+            bsp_sd_status_t status = BSP_SD_Sync();
+            return USER_MapSDStatus(pdrv, status);
+        }
 
-        case GET_SECTOR_COUNT:
-            if (BSP_SD_GetInfo(&info) != BSP_SD_OK) return RES_ERROR;
+        case GET_SECTOR_COUNT: {
+            bsp_sd_status_t status = BSP_SD_GetInfo(&info);
+            if (status != BSP_SD_OK) return USER_MapSDStatus(pdrv, status);
             *(DWORD *)buff = info.sector_count;
             return RES_OK;
+        }
 
         case GET_SECTOR_SIZE:
             *(WORD *)buff = 512;
