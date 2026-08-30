@@ -1275,6 +1275,11 @@
               <FileType>1</FileType>
               <FilePath>..\App\src\app.c</FilePath>
             </File>
+            <File>
+              <FileName>decoder.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\src\decoder.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
